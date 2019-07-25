@@ -1,0 +1,25 @@
+# terminals with [] are special ones created by the tokenizer. They're effectively pseudo non-terminals
+<axiom> ::= <root>
+
+<root> ::= {<definition>}+
+         { let out = {}; for (let i = 0, l = right.length; i < l; i++) { out[right[i].value[0]] = right[i].value[1]; } left.value = out; }
+
+<definition> ::= [nonterm] ::= <productions>
+               { left.value = [ right[0].value, right[2].value ]; }
+
+<productions> ::= <productionA> {<productionB>}*
+                { let out = []; for (let i = 0, l = right.length; i < l; i++) { out.push(right[i].value); } left.value = out; }
+
+<productionA> ::= {<token>}+ \n {<code>}?
+                { left.value = mkprod(0, left, right); }
+
+<productionB> ::= | {<token>}+ \n {<code>}?
+                { left.value = mkprod(1, left, right); }
+
+<token> ::= [term]
+          { left.value = { type: right[0].orig._type, label: right[0].value }; }
+          | [nonterm]
+          { left.value = { type: right[0].orig._type, label: right[0].value, repeat: right[0].orig.repeat }; }
+
+<code> ::= { [code] } \n
+         { left.value = right[1].value; }

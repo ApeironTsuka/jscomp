@@ -1,0 +1,15 @@
+<axiom> ::= <E>
+
+<E> ::= <E> + <T>
+      { left.value = right[0].value+right[2].value; }
+      | <E> - <T>
+      { left.value = right[0].value-right[2].value; }
+      | <T>
+
+<T> ::= <T> * <F>
+      { left.value = right[0].value*right[2].value; }
+      | <T> / <F>
+      { left.value = right[0].value/right[2].value; }
+      | <F>
+
+<F> ::= <number-constant>
