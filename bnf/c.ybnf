@@ -1,11 +1,6 @@
 %token int_const char_const float_const id string enumeration_const
 %%
 axiom : translation_unit ;
-id : identifier ;
-int_const : integer-constant ;
-char_const : character-constant ;
-float_const : floating-constant ;
-enumeration_const : enumeration-constant ;
 translation_unit	: external_decl
 			| translation_unit external_decl
 			;
