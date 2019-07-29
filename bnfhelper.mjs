@@ -2,15 +2,19 @@ import { BNFTokenizer } from './compiler/tokenizers/bnftokenizer.mjs';
 import { YBNFTokenizer } from './compiler/tokenizers/ybnftokenizer.mjs';
 import { TERM, NONTERM, ZEROORONE, ONEPLUS, ZEROPLUS } from './compiler/consts.mjs';
 import { SDT } from './compiler/sdt.mjs';
+// helper function to convert the BNF into the internal format
 function mkprod(f, left, right, k = 0) {
   let out = { tokens: [] }, hasCode = right[right.length-1].label == 'code';
   for (let i = f, l = right.length-1-(hasCode?1:0)+k; i < l; i++) { out.tokens.push(right[i].value); }
   if (hasCode) { out.func = eval(`(left, right) => { ${right[right.length-1].value} }`); }
   return out;
 }
+// set of pre-defined BNF productions to help out
 export const bnfpre = {
   letter: [ { tokens: [ { type: TERM, label: 'letter-regex', regex: /^[a-zA-Z]$/ } ] } ],
   digit: [ { tokens: [ { type: TERM, label: 'digit-regex', regex: /^[0-9]$/ } ] } ],
+  // during the CLR(1), these regexes are run against the terminal's value and the one that matches is used to represent it
+  // makes defining special constants easier
   identifier: [ { tokens: [ { type: TERM, label: 'identifier-regex', regex: /^[a-zA-Z_][a-zA-Z0-9_]*$/ } ] } ],
   'floating-constant': [ { tokens: [ { type: TERM, label: 'floating-constant-regex', regex: /^[0-9]*\.[0-9]+$/ } ], func: (left, right) => { left.value = parseFloat(right[0].value); } } ],
   'decimal-constant': [ { tokens: [ { type: TERM, label: 'decimal-constant-regex', regex: /^([1-9][0-9]*|0)$/ } ], func: (left, right) => { left.value = parseInt(right[0].value); } } ],
@@ -32,6 +36,7 @@ export const bnfpre = {
   string: [ { tokens: [ { type: TERM, label: 'string-regex', regex: /^"[\x20-\x7e\x80-\xff]*"$/ } ] } ],
   space: [ { tokens: [ { type: TERM, label: ' ' } ] } ]
 };
+// a small set of extra pre-defines for the YBNF format
 let ybnfpre_ = {
   int_const: bnfpre['integer-constant'],
   char_const: bnfpre['character-constant'],
@@ -41,6 +46,7 @@ let ybnfpre_ = {
 };
 for (let i = 0, keys = Object.keys(bnfpre), l = keys.length; i < l; i++) { ybnfpre_[keys[i]] = bnfpre[keys[i]]; }
 export const ybnfpre = ybnfpre_;
+// a pre-tokenized representation of bnf/bnf.bnf. note that this is *not* the internal representation
 let bnf = {
   axiom: [ { tokens: [ { type: NONTERM, label: 'root' } ] } ],
   root: [ { tokens: [ { type: NONTERM, label: 'definition', repeat: ONEPLUS } ], func: (left, right) => { let out = {}; for (let i = 0, l = right.length; i < l; i++) { out[right[i].value[0]] = right[i].value[1]; } left.value = out; } } ],
@@ -54,7 +60,9 @@ let bnf = {
     { tokens: [ { type: TERM, label: '[nonterm]' } ], func: (left, right) => { left.value = { type: right[0].orig._type, label: right[0].value, repeat: right[0].orig.repeat }; } }
   ]
 };
-
+// a couple helpers to make using this monstrosity easier
+// eventually these will be replaced by versions that directly use internal representations
+// but for now, these help debug by existing. if something is changed and it can no longer tokenize or parse, it's pretty evident
 export function parseBNF(sbnf, cb) {
   let t = new BNFTokenizer(sbnf), a = [], o, sdt;
   t.init();

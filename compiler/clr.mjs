@@ -14,6 +14,7 @@ export class CLR {
   parse(tokens) {
     let stack = [ 0 ], cursor = 0, charts = this.graph.charts, chart, token = tokens[cursor], bnf = this.bnf.list, tree = this.tree = [], run = true;
     let shift = (a, _n) => { let n = _n; while (n--) { a.shift(); } };
+    // move n from array a into p's children and set p's func to prod's
     let treeshift = (a, _n, p, prod) => { let n = _n; while (n--) { p.children.unshift(a.shift()); } a.unshift(p); p.func = prod.func; };
     let findByRegex = (label, chart) => {
       let works = [];

@@ -6,12 +6,19 @@ export class StateGraph {
   build(jbnf) {
     let states = [], state = new State(), p, k, z;
     states.push(state);
+    // use the "virtual" axiom-real production as the seed for the initial state
+    // this way axiom can be defined as `<axiom> ::= {<something>}*` without causing issues
     p = Production.copyOf(jbnf.find('axiom-real')[0]);
     p.lookaheads = [ new Token(TERM, '$') ];
+    // build the initial state...
     if (!state.build(jbnf, [ p ])) { console.log('Error in state 0'); return false; }
+    // ... and then build+check more
     for (let i = 0; i < states.length; i++) {
+      // this holds the productions from the current state that become the seeds for new states
       z = {};
+      // loop over this state's productions looking for seed productions
       for (let x = 0, prods = states[i].productions, xl = prods.length; x < xl; x++) {
+        // this production is a reduce, so skip it
         if (prods[x].cursor == prods[x].right.length) { continue; }
         k = prods[x].right[prods[x].cursor];
         if (!z[k.label]) { z[k.label] = { type: k.type, prods: [] }; }
@@ -19,19 +26,22 @@ export class StateGraph {
         p.cursor++;
         z[k.label].prods.push(p);
       }
+      // loop over the seeds and generate states from them, checkng for s/s and s/r conflicts
+      // r/r conflicts are handled within state.build itself
       for (let x = 0, keys = Object.keys(z), xl = keys.length; x < xl; x++) {
         state = new State();
         if (!state.build(jbnf, z[keys[x]].prods)) { console.log(`Error in state ${states.length} (above) Incomplete states below`); this.printGraph(states); return false; }
+        // check to see if this state already exists, and if not, add it to the list
         p = StateGraph.findState(states, state);
         if (p == -1) { p = states.length; states.push(state); }
         if (states[i].state[keys[x]]) { console.log(`Error: s/${states[i].state[keys[x]].act==SHIFT?'s':'r'} conflict\nError in state ${i}, ${keys[x]} shifts to state ${p} but reduces to ${states[i].state[keys[x]].n}`); this.printGraph(states); return false; }
-        process.stderr.write(`\rSolving state ${p+1} (${i})       `);
         states[i].state[keys[x]] = { act: z[keys[x]].type==TERM?SHIFT:GOTO, n: p };
       }
     }
     process.stderr.write('\n');
     this.states = states;
     let charts = this.charts = [], chart;
+    // all states and created and valid, now generate the state transition tables
     for (let i = 0, l = states.length; i < l; i++) {
       charts[i] = chart = {};
       for (let x = 0, keys = Object.keys(states[i].state), xl = keys.length; x < xl; x++) {

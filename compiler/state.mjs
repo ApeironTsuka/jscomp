@@ -34,12 +34,15 @@ export class State {
       for (let x = 0, z = list, xl = z.length; x < xl; x++) {
         p = Production.copyOf(z[x]);
         let f = prod.right[prod.cursor+1];
+        // last token in the production, so lookaheads are first-of left side
         if (!f) { p.lookaheads = Token.copyAll(prod.lookaheads); }
         else {
           if (f.type == TERM) { p.lookaheads = [ Token.copyOf(f) ]; }
+          // lookaheads are first-of follow
           else { p.lookaheads = Token.copyAll(jbnf.first[f.label]); }
         }
         if (t = hasl(prods, p)) {
+          // this production is already in this state, so just merge the lookaheads instead
           for (let k = 0, kk = p.lookaheads, kl = kk.length; k < kl; k++) { if (!has(t.lookaheads, kk[k])) { t.lookaheads.push(kk[k]); } }
         }
         else { prods.push(p); }

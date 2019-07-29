@@ -2,6 +2,7 @@ import { Token } from '../tokens/token.mjs';
 import { Tokenizer } from './tokenizer.mjs';
 import { CToken } from '../tokens/ctoken.mjs';
 import { TERM } from '../consts.mjs';
+// This could certainly be done differently/better, but is sufficient for testing purposes
 export class CTokenizer extends Tokenizer {
   constructor(str) { super(); this.str = str; }
   *parse() {
