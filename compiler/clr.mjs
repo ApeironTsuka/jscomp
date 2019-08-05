@@ -1,6 +1,7 @@
 import { Token } from './tokens/token.mjs';
 import { TreeToken } from './tokens/treetoken.mjs';
 import { StateGraph } from './stategraph.mjs';
+import { Tokenizer } from './tokenizers/tokenizer.mjs';
 import { TERM, NONTERM, SHIFT, REDUCE, ACCEPT } from './consts.mjs';
 export class CLR {
   constructor() {}
@@ -12,7 +13,7 @@ export class CLR {
     return true;
   }
   parse(tokens) {
-    let stack = [ 0 ], cursor = 0, charts = this.graph.charts, chart, token = tokens[cursor], bnf = this.bnf.list, tree = this.tree = [], run = true;
+    let stack = [ 0 ], cursor = 0, charts = this.graph.charts, chart, token, bnf = this.bnf.list, tree = this.tree = [], run = true, isGen = tokens instanceof Tokenizer;
     let shift = (a, _n) => { let n = _n; while (n--) { a.shift(); } };
     // move n from array a into p's children and set p's func to prod's
     let treeshift = (a, _n, p, prod) => { let n = _n; while (n--) { p.children.unshift(a.shift()); } a.unshift(p); p.func = prod.func; };
@@ -27,6 +28,8 @@ export class CLR {
       // either none matched, or too many matched and it doesn't know what to do
       return undefined;
     };
+    if (isGen) { token = tokens.next(); }
+    else { token = tokens[cursor]; }
     while (run) {
       chart = charts[stack[0]];
       if (!chart[token.label]) {
@@ -44,7 +47,8 @@ export class CLR {
           stack.unshift(chart[token.label].n);
           tree.unshift(TreeToken.copyOf(token, token.virt));
           cursor++;
-          token = tokens[cursor];
+          if (isGen) { token = tokens.next(); }
+          else { token = tokens[cursor]; }
           if (!token) { token = new Token(TERM, '$'); }
           break;
         case REDUCE:
