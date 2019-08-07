@@ -19,7 +19,7 @@ export class SDT {
     bnf.printFollowOf();
   }
   run(tokens, cb) {
-    let clr = this.clr = new CLR(), out;
+    let clr = this.clr = this.clr ? this.clr : new CLR(), out;
     if (!clr.load(this.bnf)) { return false; }
     if (!clr.parse(tokens)) { return false; }
     let recurse = (p) => {

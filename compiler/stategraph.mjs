@@ -40,8 +40,12 @@ export class StateGraph {
     }
     process.stderr.write('\n');
     this.states = states;
-    let charts = this.charts = [], chart;
-    // all states and created and valid, now generate the state transition tables
+    this.buildCharts();
+    return true;
+  }
+  buildCharts() {
+    let charts = this.charts = [], chart, { states } = this;
+    // all states are created and valid, now generate the state transition table
     for (let i = 0, l = states.length; i < l; i++) {
       charts[i] = chart = {};
       for (let x = 0, keys = Object.keys(states[i].state), xl = keys.length; x < xl; x++) {
@@ -52,7 +56,78 @@ export class StateGraph {
         chart[keys[x]] = states[i].state[keys[x]];
       }
     }
-    return true;
+  }
+  // optimize states into minimum equiv (CLR -> LALR)
+  optimize() {
+    let links = {}, { states } = this, counter = 1, ind;
+    let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; };
+    // step 1: build the list of equiv states
+    for (let A = 0, Al = states.length; A < Al; A++) {
+      if (links[A]) { continue; }
+      for (let B = 0, Bl = states.length; B < Bl; B++) {
+        if (A == B) { continue; }
+        if (links[B]) { continue; }
+        if (states[A].compareLazy(states[B])) {
+          if (!links[A]) { links[A] = counter++; }
+          links[B] = links[A];
+        }
+      }
+    }
+    counter--;
+    if (!counter) { return; }
+    // extend the states
+    for (let i = 0; i < counter; i++) { states.push(undefined); }
+    // step 2: create/merge/redirect states/transitions
+    for (let A = 0, Al = states.length-counter-1; A < Al; A++) {
+      for (let i = 0, { state } = states[A], keys = Object.keys(state), l = keys.length; i < l; i++) {
+        // redirect shift/goto to its new slot if it's pointing to one of the redundant states
+        switch (state[keys[i]].act) {
+          case SHIFT: case GOTO:
+            if (links[state[keys[i]].n]) { state[keys[i]].n = Al+links[state[keys[i]].n]; }
+            break;
+          default: break;
+        }
+      }
+      ind = Al+links[A];
+      // create the new state if needed by just copying this one as its base and move on
+      if (!states[ind]) { states[ind] = State.copyOf(states[A]); continue; }
+      // otherwise, merge the lookaheads of each production in this state into the new one
+      for (let i = 0, prodsA = states[A].productions, prodsB = states[ind].productions, l = prodsA.length; i < l; i++) {
+        for (let k = 0, kA = prodsA[i].lookaheads, kB = prodsB[i].lookaheads, kl = kA.length; k < kl; k++) {
+          if (!has(kB, kA[k])) {
+            kB.push(kA[k]);
+            if ((states[A].state[kA[k]]) && (!states[ind].state[kA[k]])) {
+              // I know it's not the best way, but.. FIXME ?
+              states[ind].state[kA[k]] = JSON.parse(JSON.stringify(states[A].state[kA[k]]));
+            }
+          }
+        }
+      }
+    }
+    // step 3: remove the redundant states entirely
+    let x = 0;
+    for (let A = states.length-1; A >= 0; A--) {
+      // keep a counter of the empty sections to compensate for
+      // reduces how often it needs to run back over the entire state list
+      if (links[A]) { states.splice(A, 1); x++; }
+      else {
+        if (x == 0) { continue; }
+        // remove the counter from every shift/goto when exiting an empty section
+        for (let B = states.length-1; B >= 0; B--) {
+          for (let i = 0, { state } = states[B], keys = Object.keys(state), l = keys.length; i < l; i++) {
+            switch (state[keys[i]].act) {
+              case SHIFT: case GOTO:
+                if (state[keys[i]].n > A) { state[keys[i]].n -= x; }
+                break;
+              default: break;
+            }
+          }
+        }
+        // reset counter
+        x = 0;
+      }
+    }
+    this.buildCharts();
   }
   printGraph(s) {
     let states = s||this.states;

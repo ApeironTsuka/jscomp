@@ -8,6 +8,12 @@ export class State {
     for (let x = 0, ap = state.productions, bp = this.productions, xl = ap.length; x < xl; x++) { if (ap[x].compare(bp[x])) { c++; } }
     return c==this.productions.length;
   }
+  compareLazy(state) {
+    let c = 0;
+    if (state.productions.length != this.productions.length) { return false; }
+    for (let x = 0, ap = state.productions, bp = this.productions, xl = ap.length; x < xl; x++) { if (ap[x].compareLazy(bp[x])) { c++; } }
+    return c==this.productions.length;
+  }
   toString(p) {
     let out = '';
     let act = (a) => { return a==SHIFT?'shift':a==REDUCE?'reduce':a==GOTO?'goto':a==ACCEPT?'accept':'error'; };
@@ -50,5 +56,13 @@ export class State {
     }
     this.productions = prods;
     return true;
+  }
+  static copyOf(state) {
+    let out = new State();
+    out.productions = [];
+    // I know there's probably a better way, but... FIXME ?
+    out.state = JSON.parse(JSON.stringify(state.state));
+    for (let i = 0, prods = state.productions, l = prods.length; i < l; i++) { out.productions.push(Production.copyOf(prods[i])); }
+    return out;
   }
 }
