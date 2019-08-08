@@ -19,8 +19,7 @@ Both test-cbnf and test-cybnf fail due to r/r conflict. Still not sure why. The 
 
 ### Todo list:
 
-* Remove .func from StateGraph and change SDT to refer to its internal bnf for function calls
-* Save/load SDT so that it's possible to import/export pre-built SDT instances to save re-building the CLR(1)
+* Nothing at the moment
 
 ### What I'm guessing will be some FAQs...
 

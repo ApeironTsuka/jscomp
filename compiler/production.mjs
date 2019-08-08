@@ -37,10 +37,6 @@ export class Production {
     la = la.replace(/\/$/, '');
     return `(${this.index}) ${this.left.label} -> ${right}${la?','+la:''}`;
   }
-  static callFunc(func, left, right) {
-    if (!func) { return false; }
-    return func(left, right);
-  }
   static copyOf(prod) {
     let left = Token.copyOf(prod.left);
     let a, right = a = [];

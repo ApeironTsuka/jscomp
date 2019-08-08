@@ -67,7 +67,8 @@ export function parseBNF(sbnf, cb) {
   let t = new BNFTokenizer(sbnf), a = [], o, sdt;
   t.init();
   while (o = t.next()) { a.push(o); }
-  sdt = new SDT(bnf, undefined);
+  sdt = new SDT();
+  sdt.create(bnf, undefined);
   return sdt.run(a, cb);
 }
 
@@ -92,7 +93,8 @@ export function parseYBNF(sbnf, cb) {
     let t = new YBNFTokenizer(sbnf), a = [], o, sdt;
     t.init();
     while (o = t.next()) { a.push(o); }
-    sdt = new SDT(b, undefined);
+    sdt = new SDT();
+    sdt.create(b, undefined);
     return sdt.run(a, cb);
   });
 }

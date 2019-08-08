@@ -11,8 +11,9 @@ console.log('outer '+parseBNF(`
 <A> ::= a <A>
       | b
 `, (b) => {
-  let sdt = new SDT(b);
-  sdt.clr = new LALR();
+  let sdt = new SDT(), tmp;
+  sdt.create(b);
+  if (!sdt.useLALR()) { console.log('LALR false'); return; }
   let a = [ new Token(TERM, 'a'), new Token(TERM, 'a'), new Token(TERM, 'b'), new Token(TERM, 'b'), new Token(TERM, '$') ];
   console.log('inner '+sdt.run(a, (b) => {}));
 }));
