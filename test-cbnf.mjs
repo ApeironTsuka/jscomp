@@ -1,4 +1,3 @@
-import { BNFTokenizer } from './compiler/tokenizers/bnftokenizer.mjs';
 import { SDT } from './compiler/sdt.mjs';
 import { bnfpre, parseBNF } from './bnfhelper.mjs';
 import { Token } from './compiler/tokens/token.mjs';

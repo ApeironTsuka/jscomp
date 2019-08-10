@@ -1,6 +1,6 @@
 import { BNFTokenizer } from './compiler/tokenizers/bnftokenizer.mjs';
 import { YBNFTokenizer } from './compiler/tokenizers/ybnftokenizer.mjs';
-import { TERM, NONTERM, ZEROORONE, ONEPLUS, ZEROPLUS } from './compiler/consts.mjs';
+import { TERM, NONTERM } from './compiler/consts.mjs';
 import { SDT } from './compiler/sdt.mjs';
 import fs from 'fs';
 // helper function to convert the BNF into the internal format
@@ -49,15 +49,13 @@ for (let i = 0, keys = Object.keys(bnfpre), l = keys.length; i < l; i++) { ybnfp
 export const ybnfpre = ybnfpre_;
 // a couple helpers to make using this monstrosity easier
 export function parseBNF(sbnf, cb) {
-  let t = new BNFTokenizer(sbnf), sdt;
-  sdt = new SDT();
+  let t = new BNFTokenizer(sbnf), sdt = new SDT();
   sdt.load(JSON.parse(fs.readFileSync('./bnf/bnf.sdt', 'utf8')), mkprod.toString());
   return sdt.run(t, cb);
 }
 
 export function parseYBNF(sbnf, cb) {
-  let t = new YBNFTokenizer(sbnf), sdt;
-  sdt = new SDT();
+  let t = new YBNFTokenizer(sbnf), sdt = new SDT();
   sdt.load(JSON.parse(fs.readFileSync('./bnf/ybnf.sdt', 'utf8')), mkprod.toString());
   return sdt.run(t, cb);
 }

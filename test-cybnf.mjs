@@ -1,4 +1,3 @@
-import { YBNFTokenizer } from './compiler/tokenizers/ybnftokenizer.mjs';
 import { SDT } from './compiler/sdt.mjs';
 import { ybnfpre, parseYBNF } from './bnfhelper.mjs';
 import { Token } from './compiler/tokens/token.mjs';
