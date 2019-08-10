@@ -28,7 +28,7 @@ export class CLR {
       // either none matched, or too many matched and it doesn't know what to do
       return undefined;
     };
-    if (isGen) { token = tokens.next(); }
+    if (isGen) { if (!tokens.working) { tokens.init(); } token = tokens.next(); }
     else { token = tokens[cursor]; }
     while (run) {
       chart = charts[stack[0]];

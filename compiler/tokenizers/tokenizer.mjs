@@ -1,5 +1,6 @@
 export class Tokenizer {
-  init() { this._gen = this.parse(); }
+  constructor() { this.working = false; }
+  init() { this._gen = this.parse(); this.working = true; }
   *parse() {}
   next() { return this._gen.next().value; }
 }
