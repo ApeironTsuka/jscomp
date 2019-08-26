@@ -2,15 +2,15 @@ import { Token } from './tokens/token.mjs';
 import { Production } from './production.mjs';
 import { TERM, NONTERM, EMPTY, ZEROORONE, ONEPLUS, ZEROPLUS } from './consts.mjs';
 export class ProductionList {
-  build(jbnf) {
-    let _bnf = { 'axiom-real': [] }, prods = [], regexList = [], regexHash = {};
+  build(jbnf, skipreal) {
+    let _bnf = {}, prods = [], regexList = [], regexHash = {};
     let addprod = (left, prod) => {
       let p = new Production(Token.copyOf(left), Token.copyAll(prod.tokens), prod.func);
       if (prod.virt) { p.virt = true; }
       p.index = prods.length;
       prods.push(p);
     };
-    addprod({ type: NONTERM, label: 'axiom-real' }, { tokens: [ { type: NONTERM, label: 'axiom' } ], virt: true });
+    if (!skipreal) { addprod({ type: NONTERM, label: 'axiom-real' }, { tokens: [ { type: NONTERM, label: 'axiom' } ], virt: true }); }
     // create the internal production structure
     for (let i = 0, keys = Object.keys(jbnf), l = keys.length; i < l; i++) {
       if (!_bnf[keys[i]]) { _bnf[keys[i]] = []; }

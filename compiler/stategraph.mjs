@@ -59,7 +59,7 @@ export class StateGraph {
   }
   // optimize states into minimum equiv (CLR -> LALR)
   optimize() {
-    let links = {}, { states } = this, counter = 1, ind;
+    let links = {}, { states } = this, counter = 1, ind, stateCount = states.length;
     let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; };
     // step 1: build the list of equiv states
     for (let A = 0, Al = states.length; A < Al; A++) {
@@ -74,7 +74,7 @@ export class StateGraph {
       }
     }
     counter--;
-    if (!counter) { return; }
+    if (!counter) { console.log(`Unable to optimize`); return; }
     // extend the states
     for (let i = 0; i < counter; i++) { states.push(undefined); }
     // step 2: create/merge/redirect states/transitions
@@ -127,6 +127,7 @@ export class StateGraph {
         x = 0;
       }
     }
+    console.log(`Optimized ${stateCount} states down to ${states.length} states`);
     this.buildCharts();
   }
   printGraph(s) {

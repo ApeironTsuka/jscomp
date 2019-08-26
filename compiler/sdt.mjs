@@ -10,7 +10,7 @@ export class SDT {
     bnf.build(jbnf);
     if (predef) {
       let pd = this.predef = new ProductionList();
-      pd.build(predef);
+      pd.build(predef, true);
       for (let i = 0, list = pd.list, l = list.length; i < l; i++) { list[i].index = bnf.list.length; bnf.list.push(list[i]); }
       for (let i = 0, list = pd.regexes.list, l = list.length; i < l; i++) { bnf.regexes.list.push(list[i]); bnf.regexes.hash[list[i].label] = list[i]; }
     }
@@ -48,10 +48,10 @@ export class SDT {
     if (!this.gen.load(this.bnf)) { return false; }
     return true;
   }
-  run(tokens, cb) {
-    let { gen } = this, out;
-    if (!gen) { if (!this.useCLR()) { return false; } gen = this.gen; }
-    if (!gen.parse(tokens)) { return false; }
+  run(tokens, cb, err) {
+    let { gen } = this, out, ret;
+    if (!gen) { if (!this.useCLR()) { return cb?false:Promise.reject(new Error('Failed to generate')); } gen = this.gen; }
+    if (!gen.parse(tokens)) { return cb?false:Promise.reject(new Error('Failed to parse')); }
     let callFunc = (func, left, right) => {
       if (!func) { return false; }
       return func(left, right);
@@ -59,16 +59,21 @@ export class SDT {
     let recurse = (p) => {
       let { bnf } = this, ind;
       for (let i = 0, list = p.children, l = list.length; i < l; i++) {
-        if (list[i].type == NONTERM) { recurse(list[i]); }
+        if (list[i].type == NONTERM) { if (recurse(list[i]) === false) { return false; } }
         ind = list[i].index;
-        if ((ind) && (bnf.list[ind].func)) { callFunc(bnf.list[ind].func, list[i], list[i].children); }
+        if ((ind) && (bnf.list[ind].func)) {
+          if (callFunc(bnf.list[ind].func, list[i], list[i].children) === false) {
+            if (err) { err(list[i]); return false; }
+            else if (!cb) { ret = Promise.reject(list[i]); return false; }
+          }
+        }
         else if (list[i].children.length == 1) { ((left, right) => { left.value = right[0].value; })(list[i], list[i].children); }
       }
     };
-    recurse(out = { children: this.gen.tree });
+    if (recurse(out = { children: this.gen.tree }) === false) { return (ret?ret:false); }
     let axiom = this.bnf.find('axiom-real')[0];
-    if (cb) { cb(this.gen.tree[0].value); }
-    return true;
+    if (cb) { cb(this.gen.tree[0].value); return true; }
+    else { return Promise.resolve(this.gen.tree[0].value); }
   }
   toJSON() {
     let productions = [], regexes = [], prods = this.bnf.list, regs = this.bnf.regexes.list;

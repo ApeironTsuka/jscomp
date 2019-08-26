@@ -51,11 +51,13 @@ export const ybnfpre = ybnfpre_;
 export function parseBNF(sbnf, cb) {
   let t = new BNFTokenizer(sbnf), sdt = new SDT();
   sdt.load(JSON.parse(fs.readFileSync('./bnf/bnf.sdt', 'utf8')), mkprod.toString());
-  return sdt.run(t, cb);
+  if (cb) { return sdt.run(t, cb); }
+  else { return sdt.run(t); }
 }
 
 export function parseYBNF(sbnf, cb) {
   let t = new YBNFTokenizer(sbnf), sdt = new SDT();
   sdt.load(JSON.parse(fs.readFileSync('./bnf/ybnf.sdt', 'utf8')), mkprod.toString());
-  return sdt.run(t, cb);
+  if (cb) { return sdt.run(t, cb); }
+  else { return sdt.run(t); }
 }
