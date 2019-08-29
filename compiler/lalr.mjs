@@ -5,8 +5,7 @@ export class LALR extends CLR {
   load(bnf) {
     this.bnf = bnf;
     let s = this.graph = new StateGraph();
-    if (!s.build(bnf)) { return false; }
-    s.optimize();
+    if (!s.build(bnf, true)) { return false; }
     s.print();
     return true;
   }

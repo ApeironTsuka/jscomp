@@ -2,8 +2,22 @@ import { Token } from './tokens/token.mjs';
 import { Production } from './production.mjs';
 import { State } from './state.mjs';
 import { TERM, SHIFT, REDUCE, GOTO } from './consts.mjs';
+function mergeState(s1, s2) { // merge s1 into s2
+  let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; };
+  for (let i = 0, prodsA = s1.productions, prodsB = s2.productions, l = prodsA.length; i < l; i++) {
+    for (let k = 0, kA = prodsA[i].lookaheads, kB = prodsB[i].lookaheads, kl = kA.length; k < kl; k++) {
+      if (!has(kB, kA[k])) {
+        kB.push(kA[k]);
+        if ((s1.state[kA[k]]) && (!s2.state[kA[k]])) {
+          // I know it's not the best way, but.. FIXME ?
+          s2.state[kA[k]] = JSON.parse(JSON.stringify(s1.state[kA[k]]));
+        }
+      }
+    }
+  }
+}
 export class StateGraph {
-  build(jbnf) {
+  build(jbnf, optimize) {
     let states = [], state = new State(), p, k, z;
     states.push(state);
     // use the "virtual" axiom-real production as the seed for the initial state
@@ -33,6 +47,10 @@ export class StateGraph {
         if (!state.build(jbnf, z[keys[x]].prods)) { console.log(`Error in state ${states.length} (above) Incomplete states below`); this.printGraph(states); return false; }
         // check to see if this state already exists, and if not, add it to the list
         p = StateGraph.findState(states, state);
+        if ((p == -1) && (optimize)) {
+          p = StateGraph.findStateLazy(states, state);
+          if (p != -1) { mergeState(state, states[p]); }
+        }
         if (p == -1) { p = states.length; states.push(state); }
         if (states[i].state[keys[x]]) { console.log(`Error: s/${states[i].state[keys[x]].act==SHIFT?'s':'r'} conflict\nError in state ${i}, ${keys[x]} shifts to state ${p} but reduces to ${states[i].state[keys[x]].n}`); this.printGraph(states); return false; }
         states[i].state[keys[x]] = { act: z[keys[x]].type==TERM?SHIFT:GOTO, n: p };
@@ -92,17 +110,7 @@ export class StateGraph {
       // create the new state if needed by just copying this one as its base and move on
       if (!states[ind]) { states[ind] = State.copyOf(states[A]); continue; }
       // otherwise, merge the lookaheads of each production in this state into the new one
-      for (let i = 0, prodsA = states[A].productions, prodsB = states[ind].productions, l = prodsA.length; i < l; i++) {
-        for (let k = 0, kA = prodsA[i].lookaheads, kB = prodsB[i].lookaheads, kl = kA.length; k < kl; k++) {
-          if (!has(kB, kA[k])) {
-            kB.push(kA[k]);
-            if ((states[A].state[kA[k]]) && (!states[ind].state[kA[k]])) {
-              // I know it's not the best way, but.. FIXME ?
-              states[ind].state[kA[k]] = JSON.parse(JSON.stringify(states[A].state[kA[k]]));
-            }
-          }
-        }
-      }
+      mergeState(states[A], states[ind]);
     }
     // step 3: remove the redundant states entirely
     let x = 0;
@@ -195,4 +203,5 @@ export class StateGraph {
   }
   print() { this.printGraph(); this.printPrettyChart(); }
   static findState(states, state) { for (let i = 0, l = states.length; i < l; i++) { if (states[i].compare(state)) { return i; } } return -1; }
+  static findStateLazy(states, state) { for (let i = 0, l = states.length; i < l; i++) { if (states[i].compareLazy(state)) { return i; } } return -1; }
 }
