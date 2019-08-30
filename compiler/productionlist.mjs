@@ -116,8 +116,8 @@ export class ProductionList {
       for (let i = 0, l = list.length; i < l; i++) { if (list[i].left.compare(p)) { out.push(list[i]); } }
       return out;
     };
-    let findFirst = (p) => {
-      let t, d = 0;
+    let findFirst = (p, _stack) => {
+      let t, d = 0, stack = _stack || [];
       if (p.right.length == 0) { add(p.left, new Token(EMPTY)); return; }
       if (p.right[0].type == TERM) { add(p.left, p.right[0]); return; }
       t = findProds(p.right[0]);
@@ -131,8 +131,15 @@ export class ProductionList {
         }
         if (t[i].right[0].type == TERM) { add(t[i].left, t[i].right[0]); continue; }
         if (t[i].left.compare(t[i].right[0])) { continue; }
-        findFirst(t[i]);
-        for (let k = 0, z = first[t[i].right[0].label], kl = z.length; k < kl; k++) { add(t[i].left, z[k]); }
+        // check if this should be skipped and added for step two
+        let skip = false;
+        // if the first-of is in the stack of tokens that brought us here, skip solving it for step two
+        for (let x = 0, xl = stack.length; x < xl; x++) { if (t[i].right[0].compare(stack[x])) { skip = stack[x]; break; } }
+        if (!skip) {
+          stack.push(t[i].left);
+          findFirst(t[i], stack);
+          for (let k = 0, z = first[t[i].right[0].label], kl = z.length; k < kl; k++) { add(t[i].left, z[k]); }
+        } else { add(t[i].left, skip); }
       }
       d = 0;
       if (!first[p.right[0].label]) { throw new Error(`Missing production definition for ${p.right[0].label}`); }
@@ -145,7 +152,55 @@ export class ProductionList {
         add(p.left, t[i]);
       }
     };
+    // step one, easy first-ofs
     for (let i = 0, l = list.length; i < l; i++) { findFirst(list[i]); }
+    /* step two, do the not-so-easy first-ofs where it's circular
+      example:
+        <A> ::= <B>
+              | <C>
+        <B> ::= <A>
+        <C> :: c
+    */
+    let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; },
+        keepgoing = true, procd = {},
+        proc = (p, l) => {
+          if (!procd[p.label]) { procd[p.label] = {}; }
+          procd[p.label][l.label] = true;
+        },
+        processed = (p, l) => { return procd[p.label]?!!procd[p.label][l.label]:false; };
+    while (keepgoing) {
+      keepgoing = false;
+      // loop the first-of list ...
+      for (let i = 0, keys = Object.keys(first), l = keys.length; i < l; i++) {
+        // ... and check each entry ...
+        for (let x = 0, p = first[keys[i]], xl = p.length; x < xl; x++) {
+          // ... for non-term entries ...
+          if (p[x].type == NONTERM) {
+            // ... then loop over the first-of entries for it ...
+            for (let k = 0, kl = first[p[x].label].length; k < kl; k++) {
+              // ... and add them to the original list if it's not already there ...
+              if (!has(p, first[p[x].label][k])) {
+                // ... unless this, too, is a non-term ...
+                if (first[p[x].label][k].type == NONTERM) {
+                  // ... in which case, check if we've seen this combo before ...
+                  if (!processed(p, first[p[x].label][k])) {
+                    // ... and if not, add this non-term, flag this combo, and keep it going
+                    p.push(first[p[x].label][k]);
+                    proc(p, first[p[x].label][k]);
+                    keepgoing = true;
+                  }
+                // ... otherwise, push the term
+                } else { p.push(first[p[x].label][k]); }
+              }
+            }
+            // .. then remove this non-term from the first-of list
+            p.splice(x, 1);
+            x--;
+            xl = p.length;
+          }
+        }
+      }
+    }
     this.first = first;
   }
   genFollowOf() {
