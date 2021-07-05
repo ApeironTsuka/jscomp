@@ -5,8 +5,9 @@ import { CLR } from './clr.mjs';
 import { LALR } from './lalr.mjs';
 import { NONTERM } from './consts.mjs';
 export class SDT {
-  create(jbnf, predef) {
+  create(jbnf, predef = undefined, K = 1) {
     let bnf = this.bnf = new ProductionList();
+    this.K = K;
     bnf.build(jbnf);
     if (predef) {
       let pd = this.predef = new ProductionList();
@@ -15,9 +16,9 @@ export class SDT {
       for (let i = 0, list = pd.regexes.list, l = list.length; i < l; i++) { bnf.regexes.list.push(list[i]); bnf.regexes.hash[list[i].label] = list[i]; }
     }
     console.log(bnf.toString());
-    bnf.genFirstOf();
+    bnf.genFirstOf(K);
     bnf.printFirstOf();
-    bnf.genFollowOf();
+    bnf.genFollowOf(K);
     bnf.printFollowOf();
   }
   load(obj, globals) {
@@ -39,12 +40,12 @@ export class SDT {
     bnf.regexes = regexes;
   }
   useCLR() {
-    this.gen = new CLR();
+    this.gen = new CLR(this.K);
     if (!this.gen.load(this.bnf)) { return false; }
     return true;
   }
   useLALR() {
-    this.gen = new LALR();
+    this.gen = new LALR(this.K);
     if (!this.gen.load(this.bnf)) { return false; }
     return true;
   }

@@ -11,6 +11,7 @@ export class MathTokenizer extends Tokenizer {
         default: yield new Token(TERM, o[0], o[0]); break;
       }
     }
+    while (this.K > 0) { yield new Token(TERM, '$'); }
     return new Token(TERM, '$');
   }
 }

@@ -1,6 +1,8 @@
 import { Token } from './tokens/token.mjs';
 import { Production } from './production.mjs';
-import { TERM, NONTERM, EMPTY, ZEROORONE, ONEPLUS, ZEROPLUS } from './consts.mjs';
+import { Tokens } from './tokens.mjs';
+import { TokensList } from './tokenslist.mjs';
+import { TERM, NONTERM, ZEROORONE, ONEPLUS, ZEROPLUS } from './consts.mjs';
 export class ProductionList {
   build(jbnf, skipreal) {
     let _bnf = {}, prods = [], regexList = [], regexHash = {};
@@ -103,202 +105,125 @@ export class ProductionList {
     this.list = prods;
     this.regexes = { list: regexList, hash: regexHash };
   }
-  genFirstOf() {
-    let { list } = this, first = {};
-    let add = (p, t) => {
-      if (!first[p.label]) { first[p.label] = []; }
-      for (let i = 0, list = first[p.label], l = list.length; i < l; i++) { if (list[i].compare(t)) { return; } }
-      first[p.label].push(t);
+  genFirstOf(K = 1) {
+    let { list } = this, first = {}, unfinished = [], hash = {}, prodCache = {}, passes = 10;
+    let addUnf = (l, r) => {
+      if (hash[`${l} => ${r}`]) { return; }
+      unfinished.push({ left: l, right: r });
+      hash[`${l} => ${r}`] = true;
     };
-    // find all productions whose left side matches p
-    let findProds = (p) => {
-      let out = [];
-      for (let i = 0, l = list.length; i < l; i++) { if (list[i].left.compare(p)) { out.push(list[i]); } }
-      return out;
-    };
-    let findFirst = (p, _stack) => {
-      let t, d = 0, stack = _stack || [];
-      if (p.right.length == 0) { add(p.left, new Token(EMPTY)); return; }
-      if (p.right[0].type == TERM) { add(p.left, p.right[0]); return; }
-      t = findProds(p.right[0]);
-      for (let i = 0, l = t.length; i < l; i++) {
-        if (t[i].right.length == 0) {
-          add(t[i].left, new Token(EMPTY));
-          d++;
-          if (p.right[d]) { t = findProds(p.right[d]); i = -1; l = t.length; }
-          else { break; }
-          continue;
-        }
-        if (t[i].right[0].type == TERM) { add(t[i].left, t[i].right[0]); continue; }
-        if (t[i].left.compare(t[i].right[0])) { continue; }
-        // check if this should be skipped and added for step two
-        let skip = false;
-        // if the first-of is in the stack of tokens that brought us here, skip solving it for step two
-        for (let x = 0, xl = stack.length; x < xl; x++) { if (t[i].right[0].compare(stack[x])) { skip = stack[x]; break; } }
-        if (!skip) {
-          stack.push(t[i].left);
-          findFirst(t[i], stack);
-          for (let k = 0, z = first[t[i].right[0].label], kl = z.length; k < kl; k++) { add(t[i].left, z[k]); }
-        } else { add(t[i].left, skip); }
-      }
-      d = 0;
-      if (!first[p.right[0].label]) { throw new Error(`Missing production definition for ${p.right[0].label}`); }
-      for (let i = 0, t = first[p.right[0].label], l = t.length; i < l; i++) {
-        if (t[i].type == EMPTY) {
-          d++;
-          if (p.right[d]) { t = first[p.right[d].label]; i = -1; l = t.length; continue; }
-          else { break; }
-        }
-        add(p.left, t[i]);
-      }
-    };
-    // step one, easy first-ofs
-    for (let i = 0, l = list.length; i < l; i++) { findFirst(list[i]); }
-    /* step two, do the not-so-easy first-ofs where it's circular
-      example:
-        <A> ::= <B>
-              | <C>
-        <B> ::= <A>
-        <C> :: c
-    */
-    let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; },
-        keepgoing = true, procd = {},
-        proc = (p, l) => {
-          if (!procd[p.label]) { procd[p.label] = {}; }
-          procd[p.label][l.label] = true;
-        },
-        processed = (p, l) => { return procd[p.label]?!!procd[p.label][l.label]:false; };
-    while (keepgoing) {
-      keepgoing = false;
-      // loop the first-of list ...
-      for (let i = 0, keys = Object.keys(first), l = keys.length; i < l; i++) {
-        // ... and check each entry ...
-        for (let x = 0, p = first[keys[i]], xl = p.length; x < xl; x++) {
-          // ... for non-term entries ...
-          if (p[x].type == NONTERM) {
-            // ... then loop over the first-of entries for it ...
-            for (let k = 0, kl = first[p[x].label].length; k < kl; k++) {
-              // ... and add them to the original list if it's not already there ...
-              if (!has(p, first[p[x].label][k])) {
-                // ... unless this, too, is a non-term ...
-                if (first[p[x].label][k].type == NONTERM) {
-                  // ... in which case, check if we've seen this combo before ...
-                  if (!processed(p, first[p[x].label][k])) {
-                    // ... and if not, add this non-term, flag this combo, and keep it going
-                    p.push(first[p[x].label][k]);
-                    proc(p, first[p[x].label][k]);
-                    keepgoing = true;
-                  }
-                // ... otherwise, push the term
-                } else { p.push(first[p[x].label][k]); }
-              }
-            }
-            // .. then remove this non-term from the first-of list
-            p.splice(x, 1);
-            x--;
-            xl = p.length;
+    // First pass: Initial, easy lists
+    for (let i = 0, l = list.length; i < l; i++) {
+      let p = list[i], t, f = true;
+      if (!first[p.left.label]) { first[p.left.label] = new TokensList(); }
+      if (p.right.length == 0) { first[p.left.label].add(new Tokens()); continue; }
+      t = p.right.flat(Math.min(p.right.length, K));
+      for (let x = 0, xl = t.length; x < xl; x++) { if (t[x].type == NONTERM) { f = false; break; } }
+      if (f) { first[p.left.label].add(Tokens.copyOf(t)); }
+      else { addUnf(p.left, t); }
+    }
+    // Second pass: Expanding the less simple lists
+    while (unfinished.length) {
+      for (let i = 0, l = unfinished.length; i < l; i++) {
+        let u = unfinished[i], f = true;
+        for (let x = 0, xl = u.right.length; x < xl; x++) {
+          let t = u.right[x], prods;
+          if (t.type == TERM) { continue; }
+          prods = prodCache[t.label] ? prodCache[t.label] : prodCache[t.label] = this.find(t);
+          unfinished.splice(i, 1);
+          for (let z = 0, zl = prods.length; z < zl; z++) {
+            let dup = Token.copyAll(u.right);
+            dup.splice(x, 1, ...prods[z].right);
+            dup.length = Math.min(dup.length, K);
+            addUnf(Token.copyOf(u.left), dup);
           }
+          l = unfinished.length;
+          break;
         }
+        for (let x = 0, xl = u.right.length; x < xl; x++) { if (u.right[x].type == NONTERM) { f = false; break; } }
+        if (f) { first[u.left.label].add(Tokens.copyOf(u.right)); unfinished.splice(i, 1); i--; l--; continue; }
       }
     }
     this.first = first;
   }
-  genFollowOf() {
-    let { list, first } = this, follow = {}, done = {}, total = 0, doneCount = 0;
-    // add token t to the follow-of list for production p, and track the total unique left-sides used
-    let add = (p, t) => {
-      if (!follow[p.label]) { follow[p.label] = []; total++; }
-      for (let i = 0, list = follow[p.label], l = list.length; i < l; i++) { if (list[i].compare(t)) { return; } }
-      follow[p.label].push(t);
-    };
-    // convenience function to add all tokens t. Return true if any of them represent an empty set
-    let addAll = (p, t) => {
-      let out = false;
-      for (let i = 0, l = t.length; i < l; i++) {
-        if (t[i].type == EMPTY) { out = true; continue; }
-        add(p, t[i]);
-      }
-      return out;
-    };
-    // first pass (find the easy set of follow-ofs)
-    let stage1 = function (p) {
-      let complete = true;
-      // loop over every production...
-      for (let i = 0, l = list.length; i < l; i++) {
-        // ... and find any occurance of the left-side of p
-        for (let x = 0, right = list[i].right, xl = right.length; x < xl; x++) {
-          if (p.left.compare(right[x])) {
-            x++;
-            // if there's a token after it...
-            if (right[x]) {
-              // ... and that token is a terminal, add to the follow-of ...
-              if (right[x].type == TERM) { add(p.left, right[x]); continue; }
-              // ... otherwise ...
-              while (true) {
-                // ... as long as the token is valid ...
-                if (!first[right[x].label]) { throw new Error(`Missing production definition for ${right[x].label}`);; }
-                // ... add all first-of of this non-terminal to the list, and exit the loop if none of them are empty sets ...
-                if (!addAll(p.left, first[right[x].label])) { break; }
-                x++;
-                // ... but if they are, add the left-side of this production to be handled in stage 2
-                if (!right[x]) { complete = false; add(p.left, list[i].left); break; }
-              }
-            // ... but if there's no token, add the left-side of this production to be handled in stage 2
-            } else { complete = false; add(p.left, list[i].left); }
-          }
-        }
-      }
-      // flag this follow-of as complete if no left-sides were added
-      if (complete) { done[p.left.label] = true; doneCount++; }
-    };
-    let procd = {};
-    // second pass (find the not-so-easy set)
-    let stage2 = function (p) {
-      let complete = true;
-      // no follow-of at all were found for production p, so mark it as done and ignore it
-      if (!follow[p.left.label]) { done[p.left.label] = true; doneCount++; return; }
-      // some helpers to keep track of if the given non-terminal has been proccessed so duplicates can be ignored easier
-      let proc = (p, l) => {
-            if (!procd[p.label]) { procd[p.label] = {}; }
-            procd[p.label][l.label] = true;
-          },
-          processed = (p, l) => { return procd[p.label]?!!procd[p.label][l.label]:false; };
-      // loop over the follow-ofs for production p...
-      for (let i = 0, f = follow[p.left.label], l = f.length; i < l; i++) {
-        // ... and if it's a terminal, ignore it
-        if (f[i].type == TERM) { continue; }
-        // ... and if it's a non-terminal that also needs to be processed by stage2, mark this one as incomplete (for now) as well
-        if (!done[f[i].label]) { complete = false; }
-        // ... and if it has a follow-of list ...
-        if (follow[f[i].label]) {
-          // ... and we haven't seen it for this production yet ...
-          if (!processed(p.left, f[i])) {
-            // ... add all of it's follow-ofs
-            addAll(p.left, follow[f[i].label]);
-            // ... flag it as handled
-            proc(p.left, f[i]);
-            // ... update the length of this loop as this follow-of list is now possibly longer
-            l = follow[p.left.label].length;
-          }
-        }
-        // ... remove this non-terminal from the follow list and update loop counter/length
-        f.splice(i, 1);
-        i--;
-        l--;
-      }
-      // mark this follow-of list as complete if it no longer contains any non-terminals
-      if (complete) { done[p.left.label] = true; doneCount++; }
-    };
-    // loop over the production list...
+  genFollowOf(K = 1) {
+    let { first, list } = this, follow = {}, remaining = 0;
+    // First pass: create initial lists
     for (let i = 0, l = list.length; i < l; i++) {
-      // ... and treat the special "virtual" production axiom-real special as its follow-of list is only $
-      if (list[i].left.label == 'axiom-real') { follow['axiom-real'] = [ new Token(TERM, '$') ]; done['axiom-real'] = true; doneCount++; continue; }
-      // ... and run the first pass on it, if it hasn't already completed
-      if (!done[list[i].left.label]) { stage1(list[i]); }
+      let prod = list[i];
+      if (!follow[prod.left.label]) { follow[prod.left.label] = new TokensList(); }
+      // Special case for handling axiom-real
+      if (prod.left.label == 'axiom-real') {
+        let la = new Tokens();
+        while (la.list.length < K) { la.list.push(new Token(TERM, '$')); }
+        follow['axiom-real'].add(la);
+        continue;
+      }
+      for (let x = 0, xl = list.length; x < xl; x++) {
+        let { left: l, right: r } = list[x];
+        for (let z = 0, zl = r.length; z < zl; z++) {
+          if (r[z].label == prod.left.label) {
+            let u = new TokensList();
+            u.add(new Tokens());
+            for (let k = z + 1; k <= zl; k++) {
+              if (k == zl) { u.append(l); break; }
+              if (r[k].type == TERM) { u.append(r[k]); }
+              else {
+                let nus = [], f = first[r[k].label];
+                for (let c = 0, cl = Math.min(K, f.list.length); c < cl; c++) {
+                  let nu = TokensList.copyOf(u);
+                  nu.append(f.list[c]);
+                  nus.push(nu);
+                }
+                u.clear();
+                for (let c = 0, cl = nus.length; c < cl; c++) { u.addList(nus[c]); }
+              }
+            }
+            u.truncateAll(K);
+            follow[prod.left.label].addList(u);
+          }
+        }
+      }
     }
-    // loop over the production list, running the second pass, until every follow-of list is marked as complete
-    // should hopefully never result in an infinite loop from recursion because of how the replacement step works
-    while (doneCount <= total) { for (let i = 0, l = list.length; i < l; i++) { if (!done[list[i].left.label]) { stage2(list[i], i); } } }
+    // Clean up and count how many to do
+    for (let i = 0, keys = Object.keys(follow), l = keys.length; i < l; i++) {
+      let f = follow[keys[i]];
+      remaining += f.list.length;
+      for (let x = 0, { list } = f, xl = list.length; x < xl; x++) {
+        let done = true;
+        for (let t = 0, { list: ts } = list[x], tl = ts.length; t < tl; t++) {
+          // Clean up "follow-of A is follow-of A" entries
+          if ((ts.length == 1) && (ts[0].label == keys[i])) { list.splice(x, 1); x--; xl--; break; }
+          if (ts[t].type == NONTERM) { done = false; }
+        }
+        if (done) { remaining--; }
+      }
+    }
+    // Second pass: expand non-terms
+    while (remaining > 0) {
+      for (let i = 0, keys = Object.keys(follow), l = keys.length; i < l; i++) {
+        let f = follow[keys[i]], done = true;
+        for (let x = 0, { list } = f, xl = list.length; x < xl; x++) {
+          for (let t = 0, { list: ts } = list[x], tl = ts.length; t < tl; t++) {
+            if (ts[t].type == NONTERM) {
+              let fs = follow[ts[t].label], nu = new TokensList();
+              for (let b = 0, bl = fs.list.length; b < bl; b++) {
+                let u = Tokens.copyOf(ts);
+                u.list.splice(t, 1, ...fs.list[b].list);
+                u.truncate(K);
+                f.add(u);
+                xl = list.length;
+              }
+              list.splice(x, 1);
+              xl--;
+              done = false;
+              break;
+            }
+          }
+        }
+        if (done) { remaining--; }
+      }
+    }
     this.follow = follow;
   }
   printFirstOf() {
@@ -306,7 +231,7 @@ export class ProductionList {
     console.log('FIRST OF list:');
     for (let i = 0, keys = Object.keys(first), l = keys.length; i < l; i++) {
       console.log(`  ${keys[i]}`);
-      for (let x = 0, k = first[keys[i]], xl = k.length; x < xl; x++) { console.log(`    ${k[x]}`); }
+      for (let x = 0, k = first[keys[i]].list, xl = k.length; x < xl; x++) { console.log(`    ${k[x]}`); }
     }
   }
   printFollowOf() {
@@ -314,7 +239,7 @@ export class ProductionList {
     console.log('FOLLOW OF list:');
     for (let i = 0, keys = Object.keys(follow), l = keys.length; i < l; i++) {
       console.log(`  ${keys[i]}`);
-      for (let x = 0, k = follow[keys[i]], xl = k.length; x < xl; x++) { console.log(`    ${k[x]}`); }
+      for (let x = 0, k = follow[keys[i]].list, xl = k.length; x < xl; x++) { console.log(`    ${k[x]}`); }
     }
   }
   find(left) {

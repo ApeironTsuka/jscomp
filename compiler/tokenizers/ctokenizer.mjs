@@ -33,6 +33,7 @@ export class CTokenizer extends Tokenizer {
         char += s.length+3;
       } else { throw new Error(`Unknown ... something at line ${line} char ${char}`); }
     }
+    while (this.K > 0) { yield new Token(TERM, '$'); }
     return new Token(TERM, '$');
   }
 }

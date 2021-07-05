@@ -1,7 +1,6 @@
-import { EMPTY } from '../consts.mjs';
 export class Token {
   constructor(type, label, value) { this.type = type; this.label = label; this.value = value; }
-  toString() { return this.type == EMPTY ? 'empty set' : this.label; }
+  toString() { return this.label; }
   copy(token, extra) {
     this.type = token.type;
     this.label = token.label;
@@ -9,9 +8,9 @@ export class Token {
     if (extra) { this.repeat = token.repeat; this.regex = token.regex; }
   }
   compare(token) { return ((this.type == token.type) && (this.compareLabel(token.label))); }
-  compareLabel(label) {
-    if (this.regex instanceof RegExp) { return this.regex.test(label); }
-    return this.label == label;
+  compareLabel(token) {
+    if (this.regex instanceof RegExp) { return this.regex.test(token.label || token); }
+    return this.label == (token.label || token);
   }
   static copyOf(token, extra) {
     let x = new Token(token.type, token.label, token.value);

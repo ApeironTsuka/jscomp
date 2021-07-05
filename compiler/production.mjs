@@ -1,4 +1,5 @@
 import { Token } from './tokens/token.mjs';
+import { TokensList } from './tokenslist.mjs';
 import { TERM, NONTERM } from './consts.mjs';
 export class Production {
   constructor(left, right, func = undefined, lookaheads = []) {
@@ -6,19 +7,12 @@ export class Production {
     this.left = left;
     this.right = right;
     this.func = func;
-    this.lookaheads = lookaheads;
+    this.lookaheads = new TokensList();
+    for (let i = 0, l = lookaheads.length; i < l; i++) { this.lookaheads.add(lookaheads[i]); }
   }
   compare(b) {
     if (!this.compareLazy(b)) { return false; }
-    if (this.lookaheads.length != b.lookaheads.length) { return false; }
-    let alist = [];
-    for (let i = 0, ar = this.lookaheads, l = ar.length; i < l; i++) { alist.push(ar[i]); }
-    for (let i = 0, l = alist.length; i < l; i++) {
-      for (let x = 0, br = b.lookaheads, xl = br.length; x < xl; x++) {
-        if (alist[i].compare(br[x])) { alist.splice(i, 1); i--; l--; break; }
-      }
-    }
-    return alist.length == 0;
+    return this.lookaheads.compare(b.lookaheads);
   }
   compareLazy(b) {
     let a = this;
@@ -33,8 +27,7 @@ export class Production {
     for (let i = 0, r = this.right, l = r.length; i < l; i++) { right += `${this.cursor==i?'.':''}${r[i]} `; }
     right = right.replace(/ $/, '');
     if (this.cursor == this.right.length) { right += '.'; }
-    for (let i = 0, r = this.lookaheads, l = r.length; i < l; i++) { la += `${r[i]}/`; }
-    la = la.replace(/\/$/, '');
+    la = this.lookaheads.toString();
     return `(${this.index}) ${this.left.label} -> ${right}${la?','+la:''}`;
   }
   static copyOf(prod) {
@@ -42,12 +35,11 @@ export class Production {
     let a, right = a = [];
     for (let i = 0, r = prod.right, l = r.length; i < l; i++) { a.push(Token.copyOf(r[i])); }
     let cursor = prod.cursor;
-    let lookaheads = []; a = lookaheads;
-    for (let i = 0, r = prod.lookaheads, l = r.length; i < l; i++) { a.push(Token.copyOf(r[i])); }
-    left = new Production(left, right, prod.func, lookaheads);
+    left = new Production(left, right, prod.func);
+    left.lookaheads.copyOf(prod.lookaheads);
     left.cursor = cursor;
     left.index = prod.index;
-    left.virt = prod.vert;
+    left.virt = prod.virt;
     return left;
   }
 }

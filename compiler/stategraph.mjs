@@ -1,13 +1,12 @@
 import { Token } from './tokens/token.mjs';
 import { Production } from './production.mjs';
 import { State } from './state.mjs';
+import { Tokens } from './tokens.mjs';
 import { TERM, SHIFT, REDUCE, GOTO } from './consts.mjs';
 function mergeState(s1, s2) { // merge s1 into s2
-  let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; };
   for (let i = 0, prodsA = s1.productions, prodsB = s2.productions, l = prodsA.length; i < l; i++) {
     for (let k = 0, kA = prodsA[i].lookaheads, kB = prodsB[i].lookaheads, kl = kA.length; k < kl; k++) {
-      if (!has(kB, kA[k])) {
-        kB.push(kA[k]);
+      if (kB.add(kA[k])) {
         if ((s1.state[kA[k]]) && (!s2.state[kA[k]])) {
           // I know it's not the best way, but.. FIXME ?
           s2.state[kA[k]] = JSON.parse(JSON.stringify(s1.state[kA[k]]));
@@ -17,13 +16,16 @@ function mergeState(s1, s2) { // merge s1 into s2
   }
 }
 export class StateGraph {
+  constructor(K = 1) { this.K = K; }
   build(jbnf, optimize) {
-    let states = [], state = new State(), p, k, z;
+    let states = [], { findKLookaheads } = State, { K } = this, state = new State(K), tokens = [], p, k, z;
+    let addToken = (t) => { if (tokens.indexOf(t) == -1) { tokens.push(t); } };
     states.push(state);
     // use the "virtual" axiom-real production as the seed for the initial state
     // this way axiom can be defined as `<axiom> ::= {<something>}*` without causing issues
     p = Production.copyOf(jbnf.find('axiom-real')[0]);
-    p.lookaheads = [ new Token(TERM, '$') ];
+    p.lookaheads.add(Tokens.copyOf([ new Token(TERM, '$') ]));
+    while (p.lookaheads.list[0].list.length < K) { p.lookaheads.list[0].list.push(new Token(TERM, '$')); }
     // build the initial state...
     if (!state.build(jbnf, [ p ])) { console.log('Error in state 0'); return false; }
     // ... and then build+check more
@@ -32,18 +34,30 @@ export class StateGraph {
       z = {};
       // loop over this state's productions looking for seed productions
       for (let x = 0, prods = states[i].productions, xl = prods.length; x < xl; x++) {
+        let lbl, p2, kb, map = {};
         // this production is a reduce, so skip it
         if (prods[x].cursor == prods[x].right.length) { continue; }
-        k = prods[x].right[prods[x].cursor];
-        if (!z[k.label]) { z[k.label] = { type: k.type, prods: [] }; }
+        k = kb = prods[x].right[prods[x].cursor];
         p = Production.copyOf(prods[x]);
-        p.cursor++;
-        z[k.label].prods.push(p);
+        findKLookaheads(jbnf, K, p, p);
+        for (let k = 0, la = p.lookaheads.list, kl = la.length; k < kl; k++) {
+          la[k].list.unshift(kb);
+          la[k].list.pop();
+          for (let z = 0, zl = la[k].list.length; z < zl; z++) { addToken(la[k].list[z].label); }
+          lbl = la[k].toString();
+          if (!map[lbl]) {
+            if (!z[lbl]) { z[lbl] = { type: kb.type, prods: [] }; }
+            p2 = Production.copyOf(prods[x]);
+            p2.cursor++;
+            z[lbl].prods.push(p2);
+            map[lbl] = true;
+          }
+        }
       }
-      // loop over the seeds and generate states from them, checkng for s/s and s/r conflicts
+      // loop over the seeds and generate states from them, checking for s/s and s/r conflicts
       // r/r conflicts are handled within state.build itself
       for (let x = 0, keys = Object.keys(z), xl = keys.length; x < xl; x++) {
-        state = new State();
+        state = new State(this.K);
         if (!state.build(jbnf, z[keys[x]].prods)) { console.log(`Error in state ${states.length} (above) Incomplete states below`); this.printGraph(states); return false; }
         // check to see if this state already exists, and if not, add it to the list
         p = StateGraph.findState(states, state);
@@ -58,6 +72,7 @@ export class StateGraph {
     }
     process.stderr.write('\n');
     this.states = states;
+    this.tokens = tokens;
     this.buildCharts();
     return true;
   }
