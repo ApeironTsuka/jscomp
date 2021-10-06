@@ -5,7 +5,7 @@ import { TERM, NONTERM } from '../consts.mjs';
 export class YBNFTokenizer extends Tokenizer {
   constructor(str) { super(); this.str = str; }
   *parse() {
-    let { str } = this, lines = str.split(/\n/), line, d;
+    let { str, K } = this, lines = str.split(/\n/), line, d;
     let term = /^'(.*?)'$/;
     for (let i = 0, l = lines.length; i < l; i++) {
       lines[i] = lines[i].replace(/^[ \t]*/, '').replace(/[ \t]*$/, '').replace(/\t/g, ' ');
@@ -23,7 +23,7 @@ export class YBNFTokenizer extends Tokenizer {
         }
       }
     }
-    while (this.K > 0) { yield new Token(TERM, '$'); }
+    while (K > 1) { yield new Token(TERM, '$'); K--; }
     return new Token(TERM, '$');
   }
 }

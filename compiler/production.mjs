@@ -24,17 +24,16 @@ export class Production {
   }
   toString() {
     let right = '', la = '';
-    for (let i = 0, r = this.right, l = r.length; i < l; i++) { right += `${this.cursor==i?'.':''}${r[i]} `; }
+    for (let i = 0, r = this.right, l = r.length; i < l; i++) { right += `${this.cursor == i ? '.' : ''}${r[i]} `; }
     right = right.replace(/ $/, '');
     if (this.cursor == this.right.length) { right += '.'; }
     la = this.lookaheads.toString();
-    return `(${this.index}) ${this.left.label} -> ${right}${la?','+la:''}`;
+    return `(${this.index}) ${this.left.label} -> ${right}${la ? ',' + la : ''}`;
   }
   static copyOf(prod) {
-    let left = Token.copyOf(prod.left);
+    let left = Token.copyOf(prod.left), { cursor } = prod;
     let a, right = a = [];
     for (let i = 0, r = prod.right, l = r.length; i < l; i++) { a.push(Token.copyOf(r[i])); }
-    let cursor = prod.cursor;
     left = new Production(left, right, prod.func);
     left.lookaheads.copyOf(prod.lookaheads);
     left.cursor = cursor;

@@ -66,8 +66,8 @@ export class StateGraph {
           if (p != -1) { mergeState(state, states[p]); }
         }
         if (p == -1) { p = states.length; states.push(state); }
-        if (states[i].state[keys[x]]) { console.log(`Error: s/${states[i].state[keys[x]].act==SHIFT?'s':'r'} conflict\nError in state ${i}, ${keys[x]} shifts to state ${p} but reduces to ${states[i].state[keys[x]].n}`); this.printGraph(states); return false; }
-        states[i].state[keys[x]] = { act: z[keys[x]].type==TERM?SHIFT:GOTO, n: p };
+        if (states[i].state[keys[x]]) { console.log(`Error: s/${states[i].state[keys[x]].act == SHIFT ? 's' : 'r'} conflict\nError in state ${i}, ${keys[x]} shifts to state ${p} but reduces to ${states[i].state[keys[x]].n}`); this.printGraph(states); return false; }
+        states[i].state[keys[x]] = { act: z[keys[x]].type == TERM ? SHIFT : GOTO, n: p };
       }
     }
     process.stderr.write('\n');
@@ -121,7 +121,7 @@ export class StateGraph {
           default: break;
         }
       }
-      ind = Al+links[A];
+      ind = Al + links[A];
       // create the new state if needed by just copying this one as its base and move on
       if (!states[ind]) { states[ind] = State.copyOf(states[A]); continue; }
       // otherwise, merge the lookaheads of each production in this state into the new one
@@ -154,13 +154,13 @@ export class StateGraph {
     this.buildCharts();
   }
   printGraph(s) {
-    let states = s||this.states;
+    let states = s || this.states;
     if (!states) { return; }
     for (let i = 0, l = states.length; i < l; i++) { console.log(`I${i}\n${states[i]}\n`); }
   }
   printCharts() {
     let chart;
-    let act = (a) => a==SHIFT?'shift':a==REDUCE?'reduce':a==GOTO?'goto':'accept';
+    let act = (a) => a == SHIFT ? 'shift' : a == REDUCE ? 'reduce' : a == GOTO ? 'goto' : 'accept';
     for (let i = 0, charts = this.charts, l = charts.length; i < l; i++) {
       chart = charts[i];
       console.log(`I${i}`);
@@ -170,7 +170,7 @@ export class StateGraph {
   }
   printPrettyChart() {
     let chart, { charts } = this, cells = [], action = [], goto = [];
-    let act = (a,n) => a==SHIFT?`s${n}`:a==REDUCE?`r${n}`:a==GOTO?n:'acpt';
+    let act = (a,n) => a == SHIFT ? `s${n}` : a == REDUCE ? `r${n}` : a == GOTO ? n : 'acpt';
     let addAction = (a) => { if (action.indexOf(a) == -1) { action.push(a); } };
     let addGoto = (a) => { if (goto.indexOf(a) == -1) { goto.push(a); } };
     for (let i = 0, l = charts.length; i < l; i++) {
@@ -188,29 +188,29 @@ export class StateGraph {
       cells[i] = [];
       for (let x = 0, keys = Object.keys(chart), xl = keys.length; x < xl; x++) {
         switch (chart[keys[x]].act) {
-          case GOTO: cells[i][goto.indexOf(keys[x])+action.length] = act(chart[keys[x]].act, chart[keys[x]].n); break;
+          case GOTO: cells[i][goto.indexOf(keys[x]) + action.length] = act(chart[keys[x]].act, chart[keys[x]].n); break;
           default: cells[i][action.indexOf(keys[x])] = act(chart[keys[x]].act, chart[keys[x]].n); break;
         }
       }
     }
     let longestAction = (() => { let out = 0; for (let i = 0, l = action.length; i < l; i++) { if (action[i].length > out) { out = action[i].length; } } return out; })();
     if (longestAction < 4) { longestAction = 4; }
-    else if (longestAction < this.charts.length.toString().length+1) { longestAction = this.charts.length.toString().length+1; }
+    else if (longestAction < this.charts.length.toString().length + 1) { longestAction = this.charts.length.toString().length+1; }
     let longestGoto = (() => { let out = 0; for (let i = 0, l = goto.length; i < l; i++) { if (goto[i].length > out) { out = goto[i].length; } } return out; })();
     if (longestGoto < this.charts.length.toString().length) { longestGoto = this.charts.length.toString().length; }
     let sizeLen = this.charts.length.toString().length, s = '';
-    let actionWidth = action.length*(longestAction+1)+sizeLen, gotoWidth = goto.length*(longestGoto+1);
+    let actionWidth = action.length * (longestAction + 1) + sizeLen, gotoWidth = goto.length * (longestGoto + 1);
     s = ' '.repeat(sizeLen);
-    for (let i = 0, l = action.length; i < l; i++) { s += ' '.repeat(longestAction+1-action[i].length)+action[i]; }
+    for (let i = 0, l = action.length; i < l; i++) { s += ' '.repeat(longestAction + 1 - action[i].length) + action[i]; }
     s += ' |';
-    for (let i = 0, l = goto.length; i < l; i++) { s += ' '.repeat(longestGoto+1-goto[i].length)+goto[i]; }
+    for (let i = 0, l = goto.length; i < l; i++) { s += ' '.repeat(longestGoto + 1 - goto[i].length) + goto[i]; }
     console.log(s);
     for (let i = 0, l = cells.length; i < l; i++) {
-      s = ' '.repeat(sizeLen-i.toString().length)+i;
+      s = ' '.repeat(sizeLen - i.toString().length) + i;
       for (let x = 0, cell = cells[i], xl = action.length+goto.length; x < xl; x++) {
         if (typeof cell[x] == 'undefined') { cell[x] = ''; } else { cell[x] = cell[x].toString(); }
-        if (x >= action.length) { s += ' '.repeat(longestGoto+1-cell[x].length)+cell[x]; }
-        else { s += ' '.repeat(longestAction+1-cell[x].length)+cell[x]; }
+        if (x >= action.length) { s += ' '.repeat(longestGoto + 1 - cell[x].length) + cell[x]; }
+        else { s += ' '.repeat(longestAction + 1 - cell[x].length) + cell[x]; }
         if (x+1 == action.length) { s += ' |'; }
       }
       console.log(s.replace(/ *$/g, ''));

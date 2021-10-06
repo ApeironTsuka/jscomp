@@ -51,8 +51,8 @@ export class SDT {
   }
   run(tokens, cb, err) {
     let { gen } = this, out, ret;
-    if (!gen) { if (!this.useCLR()) { return cb?false:Promise.reject(new Error('Failed to generate')); } gen = this.gen; }
-    if (!gen.parse(tokens)) { return cb?false:Promise.reject(new Error('Failed to parse')); }
+    if (!gen) { if (!this.useCLR()) { return cb ? false : Promise.reject(new Error('Failed to generate')); } gen = this.gen; }
+    if (!gen.parse(tokens)) { return cb ? false : Promise.reject(new Error('Failed to parse')); }
     let callFunc = (func, left, right) => {
       if (!func) { return false; }
       return func(left, right);
@@ -71,7 +71,7 @@ export class SDT {
         else if (list[i].children.length == 1) { ((left, right) => { left.value = right[0].value; })(list[i], list[i].children); }
       }
     };
-    if (recurse(out = { children: this.gen.tree }) === false) { return (ret?ret:false); }
+    if (recurse(out = { children: this.gen.tree }) === false) { return (ret ? ret : false); }
     let axiom = this.bnf.find('axiom-real')[0];
     if (cb) { cb(this.gen.tree[0].value); return true; }
     else { return Promise.resolve(this.gen.tree[0].value); }
@@ -80,7 +80,7 @@ export class SDT {
     let productions = [], regexes = [], prods = this.bnf.list, regs = this.bnf.regexes.list;
     for (let i = 0, l = prods.length; i < l; i++) {
       let { left, func, virt, index } = prods[i];
-      productions.push({ left, func: func?func.toString():undefined, virt, index });
+      productions.push({ left, func: func ? func.toString() : undefined, virt, index });
     }
     for (let i = 0, l = regs.length; i < l; i++) {
       let { label, regex } = regs[i];

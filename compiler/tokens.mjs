@@ -16,14 +16,14 @@ export class Tokens {
   }
   toString() {
     let out = '';
-    for (let i = 0, { list } = this, l = list.length; i < l; i++) { out += `${list[i].toString()}${i<l-1?' ':''}`; }
+    for (let i = 0, { list } = this, l = list.length; i < l; i++) { out += `${list[i].toString()}${i < l - 1 ? ' ' : ''}`; }
     if (this.list.length > 1) { out = `(${out})`; }
     return out;
   }
   flat(K) { return this.list.slice(0, K); }
   static copyOf(la) {
     let out = new Tokens();
-    out.list = Token.copyAll(la.list||la);
+    out.list = Token.copyAll(la.list || la);
     return out;
   }
   static compareFlat(ts1, t2s) {

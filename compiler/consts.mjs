@@ -1,4 +1,4 @@
-             // Token types. EMPTY is only used during first/follow generation
+             // Token types
 export const TERM = 0, NONTERM = 1,
              // Actions used within the state graph/final CLR
              SHIFT = 0, REDUCE = 1, GOTO = 2, ACCEPT = 3,

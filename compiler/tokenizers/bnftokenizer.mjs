@@ -5,7 +5,7 @@ import { TERM, NONTERM, ZEROORONE, ONEPLUS, ZEROPLUS } from '../consts.mjs';
 export class BNFTokenizer extends Tokenizer {
   constructor(str) { super(); this.str = str; }
   *parse() {
-    let str = this.str, lines = str.split(/\n/), line, inCode = false, bcount = 0, code = '', seenSet = false, seenBar = false;
+    let { str, K } = this, lines = str.split(/\n/), line, inCode = false, bcount = 0, code = '', seenSet = false, seenBar = false;
     let nonterm = /^(\{?)(\<(.*?)\>)((\})([+*?]))?$/, d;
     for (let i = 0, l = lines.length; i < l; i++) {
       lines[i] = lines[i].replace(/^ */, '').replace(/ *$/, '');
@@ -26,15 +26,15 @@ export class BNFTokenizer extends Tokenizer {
         for (let x = 0, xl = line.length; x < xl; x++) {
           if (!inCode) {
             if (line[x] == '') { continue; }
-            if (d = nonterm.exec(line[x])) { yield new BNFToken(NONTERM, d[3], i, x, (d[6]=='+'?ONEPLUS:d[6]=='*'?ZEROPLUS:d[6]=='?'?ZEROORONE:undefined)); }
+            if (d = nonterm.exec(line[x])) { yield new BNFToken(NONTERM, d[3], i, x, (d[6] == '+' ? ONEPLUS : d[6] == '*' ? ZEROPLUS : d[6] == '?' ? ZEROORONE : undefined)); }
             else {
               switch (line[x]) {
                 case '::=':
-                  yield seenSet?new BNFToken(TERM, line[x], i, x):new BNFToken(line[x], undefined, i, x);
+                  yield seenSet ? new BNFToken(TERM, line[x], i, x) : new BNFToken(line[x], undefined, i, x);
                   seenSet = true;
                   break;
                 case '|': 
-                  yield seenBar|seenSet?new BNFToken(TERM, line[x], i, x):new BNFToken(line[x], undefined, i, x);
+                  yield (seenBar || seenSet) ? new BNFToken(TERM, line[x], i, x) : new BNFToken(line[x], undefined, i, x);
                   seenBar = true;
                   break;
                 default: yield new BNFToken(TERM, line[x], i, x); break;
@@ -58,7 +58,7 @@ export class BNFTokenizer extends Tokenizer {
         }
       }
     }
-    while (this.K > 0) { yield new Token(TERM, '$'); }
+    while (K > 1) { yield new Token(TERM, '$'); K--; }
     return new Token(TERM, '$');
   }
 }

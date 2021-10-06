@@ -21,7 +21,7 @@ export class TokensList {
   }
   copyOf(tl) {
     this.list.length = 0;
-    for (let i = 0, { list } = this, l2 = (tl.list?tl.list:tl), l = l2.length; i < l; i++) { list.push(Tokens.copyOf(l2[i])); }
+    for (let i = 0, { list } = this, l2 = (tl.list ? tl.list : tl), l = l2.length; i < l; i++) { list.push(Tokens.copyOf(l2[i])); }
   }
   flat(K) {
     let out = [];
@@ -30,7 +30,7 @@ export class TokensList {
   }
   toString() {
     let out = '';
-    for (let i = 0, { list } = this, l = list.length; i < l; i++) { out += `${list[i].toString()}${i<l-1?'/':''}`; }
+    for (let i = 0, { list } = this, l = list.length; i < l; i++) { out += `${list[i].toString()}${i < l - 1 ? '/' : ''}`; }
     return out;
   }
   static copyOf(tl) {

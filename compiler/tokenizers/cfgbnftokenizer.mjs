@@ -5,7 +5,7 @@ import { TERM, NONTERM } from '../consts.mjs';
 export class CFGBNFTokenizer extends Tokenizer {
   constructor(str) { super(); this.str = str; }
   *parse() {
-    let { str } = this, lines = str.split(/\n/), line, d;
+    let { str, K } = this, lines = str.split(/\n/), line, d;
     let nonterms = {
       'letter': true,
       'digit': true,
@@ -47,7 +47,7 @@ export class CFGBNFTokenizer extends Tokenizer {
       }
       yield new BNFToken('[newline]', undefined, i, line.length);
     }
-    while (this.K > 0) { yield new Token(TERM, '$'); }
+    while (K > 1) { yield new Token(TERM, '$'); K--; }
     return new Token(TERM, '$');
   }
 }

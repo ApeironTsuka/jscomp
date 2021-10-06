@@ -43,5 +43,5 @@ parseBNF(`
   let sdt = new SDT();
   sdt.create(b, cfgbnfpre);
   let a = [ new Token(TERM, '1'), new Token(TERM, '+'), new Token(TERM, '1'), new Token(TERM, '$') ];
-  console.log('result '+sdt.run(a, (b) => {}));
+  console.log('result', sdt.run(a, (b) => {}));
 });

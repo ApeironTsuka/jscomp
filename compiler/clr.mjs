@@ -16,15 +16,17 @@ export class CLR {
   parse(tokens) {
     let stack = [ 0 ], cursor = 0, { charts, tokens: chartTokens } = this.graph, { K } = this, chart, bnf = this.bnf.list, tree = this.tree = [], run = true, isGen = tokens instanceof Tokenizer, token, tokenLabel, tokenBuf = new Tokens();
     let shift = (a, _n) => { let n = _n; while (n--) { a.shift(); } };
-    // move n from array a into p's children and set p's func to prod's
+    // move n from array a into p's children and set p's index to prod's
     let treeshift = (a, _n, p, prod) => { let n = _n; while (n--) { p.children.unshift(a.shift()); } a.unshift(p); p.index = prod.index; };
     let findByRegex = (label) => {
       let works = [];
       // find all of the regex it matches
       for (let i = 0, list = this.bnf.regexes.list, l = list.length; i < l; i++) { if (list[i].regex.test(label)) { works.push(list[i]); } }
+      // if only 1, then we're done
       if (works.length == 1) { return works[0].label; }
-      // remove the matches that doesn't have in the chart
+      // remove the matches that aren't in the chart
       for (let i = 0, l = works.length; i < l; i++) { if (chartTokens.indexOf(works[i].label) == -1) { works.splice(i, 1); i--; l--; } }
+      // if only 1, then we're done
       if (works.length == 1) { return works[0].label; }
       // either none matched, or too many matched and it doesn't know what to do
       return undefined;
@@ -37,7 +39,7 @@ export class CLR {
       if (tr) { let k = t; t = new Token(TERM, tr, t.label); t.orig = k; }
       tokenBuf.list.push(t);
     };
-    if (isGen) { if (!tokens.working) { tokens.init(K); } }
+    if ((isGen) && (!tokens.working)) { tokens.init(K); }
     for (let i = 0; i < K; i++) { addNextToken(); }
     token = tokenBuf.list[0];
     tokenLabel = token.label;
@@ -60,7 +62,7 @@ export class CLR {
           if (!token) { token = new Token(TERM, '$'); }
           break;
         case REDUCE:
-          shift(stack, 2*chart[tokenLabel].l);
+          shift(stack, 2 * chart[tokenLabel].l);
           treeshift(tree, chart[tokenLabel].l, TreeToken.copyOf(bnf[chart[tokenLabel].n].left, bnf[chart[tokenLabel].n].virt), bnf[chart[tokenLabel].n]);
           stack.unshift(bnf[chart[tokenLabel].n].left);
           if (K > 1) {
@@ -80,6 +82,7 @@ export class CLR {
         default: console.log(`DEFAULT ${token.label}`); console.log(chart[tokenLabel]); return false;
       }
     }
+    // recursively remove "virtual" productions, moving their children into their place
     let fixvirts = (list) => {
       for (let i = 0, l = list.length; i < l; i++) {
         if (list[i].virt) { list.splice(i, 1, ...list[i].children); i--; l = list.length; continue; }

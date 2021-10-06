@@ -9,18 +9,18 @@ export class State {
     let c = 0;
     if (state.productions.length != this.productions.length) { return false; }
     for (let x = 0, ap = state.productions, bp = this.productions, xl = ap.length; x < xl; x++) { if (ap[x].compare(bp[x])) { c++; } }
-    return c==this.productions.length;
+    return c == this.productions.length;
   }
   compareLazy(state) {
     let c = 0;
     if (state.productions.length != this.productions.length) { return false; }
     for (let x = 0, ap = state.productions, bp = this.productions, xl = ap.length; x < xl; x++) { if (ap[x].compareLazy(bp[x])) { c++; } }
-    return c==this.productions.length;
+    return c == this.productions.length;
   }
   toString(p) {
     let out = '';
-    let act = (a) => { return a==SHIFT?'shift':a==REDUCE?'reduce':a==GOTO?'goto':a==ACCEPT?'accept':'error'; };
-    for (let i = 0, prods = p||this.productions, l = prods.length; i < l; i++) { out += `${prods[i]}\n`; }
+    let act = (a) => { return a == SHIFT ? 'shift' : a == REDUCE ? 'reduce' : a == GOTO ? 'goto' : a == ACCEPT ? 'accept' : 'error'; };
+    for (let i = 0, prods = p || this.productions, l = prods.length; i < l; i++) { out += `${prods[i]}\n`; }
     for (let i = 0, keys = Object.keys(this.state), l = keys.length; i < l; i++) { out += `${keys[i]}=${act(this.state[keys[i]].act)} ${this.state[keys[i]].n}\n`; }
     return out;
   }
@@ -36,7 +36,7 @@ export class State {
         for (let x = 0, la = prod.lookaheads.list, xl = la.length; x < xl; x++) {
           lbl = la[x].toString();
           if (this.state[lbl]) { console.log(`ERROR: r/r conflict`); console.log(this.toString(prods)); return false; }
-          this.state[lbl] = { act: prod.index==0?ACCEPT:REDUCE, n: prod.index, l: prod.right.length, virt: prod.virt };
+          this.state[lbl] = { act: prod.index == 0 ? ACCEPT : REDUCE, n: prod.index, l: prod.right.length, virt: prod.virt };
         }
         continue;
       }

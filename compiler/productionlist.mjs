@@ -19,13 +19,13 @@ export class ProductionList {
       for (let x = 0, z = jbnf[keys[i]], xl = z.length; x < xl; x++) {
         /*
           z = jbnf[keys[i]] = the input list of productions with the same left side
-          since "virtual" productions can create productions beyon the end of this list,
+          since "virtual" productions can create productions beyond the end of this list,
           make sure it doesn't try to. This is a long explanation for something that, at a glance
           seemed obvious to me but then I also spent a couple minutes trying to remember why it's
-          x < z.length and not x < xl so.....
+          x < z.length and not x < xl so...
         */
         if (x < z.length) { _bnf[keys[i]].push({ tokens: Token.copyAll(z[x].tokens, true), func: z[x].func }); }
-        let c = _bnf[keys[i]]; c = c[x];
+        let c = _bnf[keys[i]][x];
         for (let k = 0, t = c.tokens, kl = t.length; k < kl; k++) {
           if (t[k].type == TERM) {
             // special regex terminal. Examples can be found in bnfhelper.mjs
@@ -106,7 +106,7 @@ export class ProductionList {
     this.regexes = { list: regexList, hash: regexHash };
   }
   genFirstOf(K = 1) {
-    let { list } = this, first = {}, unfinished = [], hash = {}, prodCache = {}, passes = 10;
+    let { list } = this, first = {}, unfinished = [], hash = {}, prodCache = {};
     let addUnf = (l, r) => {
       if (hash[`${l} => ${r}`]) { return; }
       unfinished.push({ left: l, right: r });
@@ -119,7 +119,9 @@ export class ProductionList {
       if (p.right.length == 0) { first[p.left.label].add(new Tokens()); continue; }
       t = p.right.flat(Math.min(p.right.length, K));
       for (let x = 0, xl = t.length; x < xl; x++) { if (t[x].type == NONTERM) { f = false; break; } }
+      // if this production's right side contained only terminals, add it to the final first-of list
       if (f) { first[p.left.label].add(Tokens.copyOf(t)); }
+      // otherwise place it in the unfinished list for the next pass
       else { addUnf(p.left, t); }
     }
     // Second pass: Expanding the less simple lists
@@ -129,17 +131,26 @@ export class ProductionList {
         for (let x = 0, xl = u.right.length; x < xl; x++) {
           let t = u.right[x], prods;
           if (t.type == TERM) { continue; }
+          // get the list of all productions that have t as their left side
           prods = prodCache[t.label] ? prodCache[t.label] : prodCache[t.label] = this.find(t);
+          // remove this from the unfinished list
           unfinished.splice(i, 1);
+          // for each of the productions...
           for (let z = 0, zl = prods.length; z < zl; z++) {
+            // ... make a copy of this unfinished right side...
             let dup = Token.copyAll(u.right);
+            // ... overwrite t's place with the right side of this production...
             dup.splice(x, 1, ...prods[z].right);
+            // ... trim to length...
             dup.length = Math.min(dup.length, K);
+            // ... and add each to the unfinished list
             addUnf(Token.copyOf(u.left), dup);
+            // the idea here is that, eventually, each entry *will* result in <= K terminal entries
           }
           l = unfinished.length;
           break;
         }
+        // same as in the first pass
         for (let x = 0, xl = u.right.length; x < xl; x++) { if (u.right[x].type == NONTERM) { f = false; break; } }
         if (f) { first[u.left.label].add(Tokens.copyOf(u.right)); unfinished.splice(i, 1); i--; l--; continue; }
       }
@@ -152,7 +163,7 @@ export class ProductionList {
     for (let i = 0, l = list.length; i < l; i++) {
       let prod = list[i];
       if (!follow[prod.left.label]) { follow[prod.left.label] = new TokensList(); }
-      // Special case for handling axiom-real
+      // Special case for handling axiom-real, since its follow-of is always K number of $
       if (prod.left.label == 'axiom-real') {
         let la = new Tokens();
         while (la.list.length < K) { la.list.push(new Token(TERM, '$')); }
