@@ -54,7 +54,7 @@ export function parseBNF(sbnf, _honorEmpty = true, _cb = undefined) {
       honorEmpty = _honorEmpty, cb = _cb, b = BNFToken.honorEmpty, p;
   if (typeof _honorEmpty == 'function') { honorEmpty = true; cb = _honorEmpty; }
   BNFToken.honorEmpty = honorEmpty;
-  sdt.load(JSON.parse(fs.readFileSync('./bnf/bnf2.sdt', 'utf8')), mkprod.toString());
+  sdt.load(JSON.parse(fs.readFileSync('./bnf/bnf.sdt', 'utf8')), mkprod.toString());
   if (cb) { p = sdt.run(t, cb); }
   else { p = sdt.run(t); }
   BNFToken.honorEmpty = b;
