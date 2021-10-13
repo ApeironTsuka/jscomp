@@ -181,7 +181,7 @@ export class ProductionList {
               if (r[k].type == TERM) { u.append(r[k]); }
               else {
                 let nus = [], f = first[r[k].label];
-                for (let c = 0, cl = Math.min(K, f.list.length); c < cl; c++) {
+                for (let c = 0, cl = f.list.length; c < cl; c++) {
                   let nu = TokensList.copyOf(u);
                   nu.append(f.list[c]);
                   nus.push(nu);

@@ -12,9 +12,13 @@
 
 <productionA> ::= {<token>}+ \n {<code>}?
                 { left.value = mkprod(0, left, right); }
+                | [empty] \n
+                { left.value = mkprod(0, left, []); }
 
 <productionB> ::= | {<token>}+ \n {<code>}?
                 { left.value = mkprod(1, left, right); }
+                | | [empty] \n
+                { left.value = mkprod(0, left, []); }
 
 <token> ::= [term]
           { left.value = { type: right[0].orig._type, label: right[0].value }; }

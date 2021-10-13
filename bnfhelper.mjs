@@ -1,11 +1,12 @@
 import { BNFTokenizer } from './compiler/tokenizers/bnftokenizer.mjs';
+import { BNFToken } from './compiler/tokens/bnftoken.mjs';
 import { YBNFTokenizer } from './compiler/tokenizers/ybnftokenizer.mjs';
 import { TERM, NONTERM } from './compiler/consts.mjs';
 import { SDT } from './compiler/sdt.mjs';
 import fs from 'fs';
 // helper function to convert the BNF into the internal format
 function mkprod(f, left, right, k = 0) {
-  let out = { tokens: [] }, hasCode = right[right.length-1].label == 'code';
+  let out = { tokens: [] }, hasCode = right.length > 0 && right[right.length-1].label == 'code';
   for (let i = f, l = right.length-1-(hasCode?1:0)+k; i < l; i++) { out.tokens.push(right[i].value); }
   if (hasCode) { out.func = eval(`(left, right) => { ${right[right.length-1].value} }`); }
   return out;
@@ -48,14 +49,18 @@ let ybnfpre_ = {
 for (let i = 0, keys = Object.keys(bnfpre), l = keys.length; i < l; i++) { ybnfpre_[keys[i]] = bnfpre[keys[i]]; }
 export const ybnfpre = ybnfpre_;
 // a couple helpers to make using this monstrosity easier
-export function parseBNF(sbnf, cb) {
-  let t = new BNFTokenizer(sbnf), sdt = new SDT();
-  sdt.load(JSON.parse(fs.readFileSync('./bnf/bnf.sdt', 'utf8')), mkprod.toString());
-  if (cb) { return sdt.run(t, cb); }
-  else { return sdt.run(t); }
+export function parseBNF(sbnf, _honorEmpty = true, _cb = undefined) {
+  let t = new BNFTokenizer(sbnf), sdt = new SDT(),
+      honorEmpty = _honorEmpty, cb = _cb, b = BNFToken.honorEmpty, p;
+  if (typeof _honorEmpty == 'function') { honorEmpty = true; cb = _honorEmpty; }
+  BNFToken.honorEmpty = honorEmpty;
+  sdt.load(JSON.parse(fs.readFileSync('./bnf/bnf2.sdt', 'utf8')), mkprod.toString());
+  if (cb) { p = sdt.run(t, cb); }
+  else { p = sdt.run(t); }
+  BNFToken.honorEmpty = b;
+  return p;
 }
-
-export function parseYBNF(sbnf, cb) {
+export function parseYBNF(sbnf, cb = undefined) {
   let t = new YBNFTokenizer(sbnf), sdt = new SDT();
   sdt.load(JSON.parse(fs.readFileSync('./bnf/ybnf.sdt', 'utf8')), mkprod.toString());
   if (cb) { return sdt.run(t, cb); }

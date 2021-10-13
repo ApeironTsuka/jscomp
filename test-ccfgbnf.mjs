@@ -23,6 +23,8 @@ parseBNF(`
 
 <production> ::= [space] {<token>}+ [newline] {<code>}?
                { left.value = mkprod(1, left, right); }
+               | [space] [empty] [newline]
+               { left.value = mkprod(0, left, []); }
 
 <token> ::= [term]
           { left.value = { type: right[0].orig._type, label: right[0].value }; }
@@ -33,7 +35,7 @@ parseBNF(`
 
 <codep> ::= [ast] [code] \n
          { left.value = right[1].value; }
-`).then((b) => {
+`, false).then((b) => {
   console.log('CFG parser');
   let t = new CFGBNFTokenizer(fs.readFileSync('./bnf/c.cfg', 'utf8').toString()), sdt = new SDT();
   sdt.create(b, cfgbnfpre);

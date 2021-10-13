@@ -42,7 +42,8 @@ export class CFGBNFTokenizer extends Tokenizer {
       }
       for (let x = d, xl = line.length; x < xl; x++) {
         if (line[x] == '') { continue; }
-        if (nonterms[line[x]]) { yield new BNFToken(NONTERM, line[x], i, x); }
+        if (line[x] == '_E_M_P_T_Y_R_U_L_E_') { yield new BNFToken('[empty]', undefined, i, x); break; }
+        else if (nonterms[line[x]]) { yield new BNFToken(NONTERM, line[x], i, x); }
         else { yield new BNFToken(TERM, line[x], i, x); }
       }
       yield new BNFToken('[newline]', undefined, i, line.length);
