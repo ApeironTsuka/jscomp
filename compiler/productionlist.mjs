@@ -3,8 +3,9 @@ import { Production } from './production.mjs';
 import { Tokens } from './tokens.mjs';
 import { TokensList } from './tokenslist.mjs';
 import { TERM, NONTERM, ZEROORONE, ONEPLUS, ZEROPLUS } from './consts.mjs';
+import { Printer, Channels } from './printer.mjs';
 export class ProductionList {
-  build(jbnf, skipreal) {
+  build({ definitions: jbnf, tags }) {
     let _bnf = {}, prods = [], regexList = [], regexHash = {};
     let addprod = (left, prod) => {
       let p = new Production(Token.copyOf(left), Token.copyAll(prod.tokens), prod.func);
@@ -12,7 +13,7 @@ export class ProductionList {
       p.index = prods.length;
       prods.push(p);
     };
-    if (!skipreal) { addprod({ type: NONTERM, label: 'axiom-real' }, { tokens: [ { type: NONTERM, label: 'axiom' } ], virt: true }); }
+    addprod({ type: NONTERM, label: 'axiom-real' }, { tokens: [ { type: NONTERM, label: tags ? tags.axiom ? tags.axiom : 'axiom' : 'axiom' } ], virt: true });
     // create the internal production structure
     for (let i = 0, keys = Object.keys(jbnf), l = keys.length; i < l; i++) {
       if (!_bnf[keys[i]]) { _bnf[keys[i]] = []; }
@@ -103,6 +104,7 @@ export class ProductionList {
       }
     }
     this.list = prods;
+    this.tags = tags;
     this.regexes = { list: regexList, hash: regexHash };
   }
   genFirstOf(K = 1) {
@@ -117,7 +119,7 @@ export class ProductionList {
       let p = list[i], t, f = true;
       if (!first[p.left.label]) { first[p.left.label] = new TokensList(); }
       if (p.right.length == 0) { first[p.left.label].add(new Tokens()); continue; }
-      t = p.right.flat(Math.min(p.right.length, K));
+      t = p.right.slice(0, Math.min(p.right.length, K));
       for (let x = 0, xl = t.length; x < xl; x++) { if (t[x].type == NONTERM) { f = false; break; } }
       // if this production's right side contained only terminals, add it to the final first-of list
       if (f) { first[p.left.label].add(Tokens.copyOf(t)); }
@@ -239,18 +241,20 @@ export class ProductionList {
   }
   printFirstOf() {
     let { first } = this;
-    console.log('FIRST OF list:');
+    if (Printer.channel > Channels.VERBOSE) { return; }
+    Printer.log(Channels.VERBOSE, 'FIRST OF list:');
     for (let i = 0, keys = Object.keys(first), l = keys.length; i < l; i++) {
-      console.log(`  ${keys[i]}`);
-      for (let x = 0, k = first[keys[i]].list, xl = k.length; x < xl; x++) { console.log(`    ${k[x]}`); }
+      Printer.log(Channels.VERBOSE, `  ${keys[i]}`);
+      for (let x = 0, k = first[keys[i]].list, xl = k.length; x < xl; x++) { Printer.log(Channels.VERBOSE, `    ${k[x]}`); }
     }
   }
   printFollowOf() {
     let { follow } = this;
-    console.log('FOLLOW OF list:');
+    if (Printer.channel > Channels.VERBOSE) { return; }
+    Printer.log(Channels.VERBOSE, 'FOLLOW OF list:');
     for (let i = 0, keys = Object.keys(follow), l = keys.length; i < l; i++) {
-      console.log(`  ${keys[i]}`);
-      for (let x = 0, k = follow[keys[i]].list, xl = k.length; x < xl; x++) { console.log(`    ${k[x]}`); }
+      Printer.log(Channels.VERBOSE, `  ${keys[i]}`);
+      for (let x = 0, k = follow[keys[i]].list, xl = k.length; x < xl; x++) { Printer.log(Channels.VERBOSE, `    ${k[x]}`); }
     }
   }
   find(left) {

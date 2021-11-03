@@ -22,23 +22,35 @@ export class BNFTokenizer extends Tokenizer {
           i--;
           continue;
         }
+        else if (lines[i][0] == '.') {
+          yield new BNFToken('.', undefined, i, 0);
+          yield new BNFToken(TERM, line[0].substr(1), i, 0);
+          if (line.length == 1) { yield new BNFToken(TERM, '1', i, 1); continue; }
+          if (line[1][0] == '{') {
+            inCode = true;
+            bcount = 1;
+            code = '';
+            lines[i] = lines[i].substr(line[0].length + 2);
+            yield new BNFToken('{', undefined, i, 1);
+            i--;
+          } else { yield new BNFToken(TERM, line[1], i, 1); }
+          continue;
+        }
         seenBar = seenSet = false;
         for (let x = 0, xl = line.length; x < xl; x++) {
-          if (!inCode) {
-            if (line[x] == '') { continue; }
-            if (d = nonterm.exec(line[x])) { yield new BNFToken(NONTERM, d[3], i, x, (d[6] == '+' ? ONEPLUS : d[6] == '*' ? ZEROPLUS : d[6] == '?' ? ZEROORONE : undefined)); }
-            else {
-              switch (line[x]) {
-                case '::=':
-                  yield seenSet ? new BNFToken(TERM, line[x], i, x) : new BNFToken(line[x], undefined, i, x);
-                  seenSet = true;
-                  break;
-                case '|': 
-                  yield (seenBar || seenSet) ? new BNFToken(TERM, line[x], i, x) : new BNFToken(line[x], undefined, i, x);
-                  seenBar = true;
-                  break;
-                default: yield new BNFToken(TERM, line[x], i, x); break;
-              }
+          if (line[x] == '') { continue; }
+          if (d = nonterm.exec(line[x])) { yield new BNFToken(NONTERM, d[3], i, x, (d[6] == '+' ? ONEPLUS : d[6] == '*' ? ZEROPLUS : d[6] == '?' ? ZEROORONE : undefined)); }
+          else {
+            switch (line[x]) {
+              case '::=':
+                yield seenSet ? new BNFToken(TERM, line[x], i, x) : new BNFToken(line[x], undefined, i, x);
+                seenSet = true;
+                break;
+              case '|':
+                yield (seenBar || seenSet) ? new BNFToken(TERM, line[x], i, x) : new BNFToken(line[x], undefined, i, x);
+                seenBar = true;
+                break;
+              default: yield new BNFToken(TERM, line[x], i, x); break;
             }
           }
         }

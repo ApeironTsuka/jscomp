@@ -2,9 +2,9 @@ import { Production } from './production.mjs';
 import { TERM, SHIFT, REDUCE, GOTO, ACCEPT } from './consts.mjs';
 import { Token } from './tokens/token.mjs';
 import { Tokens } from './tokens.mjs';
-import util from 'util';
+import { Printer, Channels } from './printer.mjs';
 export class State {
-  constructor(K = 1) { this.K = K; }
+  constructor(K = 1, allowConflicts = false) { this.K = K; this.allowConflicts = allowConflicts; }
   compare(state) {
     let c = 0;
     if (state.productions.length != this.productions.length) { return false; }
@@ -17,26 +17,50 @@ export class State {
     for (let x = 0, ap = state.productions, bp = this.productions, xl = ap.length; x < xl; x++) { if (ap[x].compareLazy(bp[x])) { c++; } }
     return c == this.productions.length;
   }
+  contains(state) {
+    let c = 0;
+    if (state.productions.length != this.productions.length) { return false; }
+    for (let x = 0, ap = state.productions, bp = this.productions, xl = ap.length; x < xl; x++) { if (ap[x].contains(bp[x])) { c++; } }
+    return c == this.productions.length;
+  }
   toString(p) {
-    let out = '';
+    let { state } = this, out = '';
     let act = (a) => { return a == SHIFT ? 'shift' : a == REDUCE ? 'reduce' : a == GOTO ? 'goto' : a == ACCEPT ? 'accept' : 'error'; };
     for (let i = 0, prods = p || this.productions, l = prods.length; i < l; i++) { out += `${prods[i]}\n`; }
-    for (let i = 0, keys = Object.keys(this.state), l = keys.length; i < l; i++) { out += `${keys[i]}=${act(this.state[keys[i]].act)} ${this.state[keys[i]].n}\n`; }
+    for (let i = 0, keys = Object.keys(state), l = keys.length; i < l; i++) {
+      out += `${keys[i]}=`;
+      if (state[keys[i]] instanceof Array) {
+        for (let s = 0, st = state[keys[i]], sl = st.length; s < sl; s++) { out += `${s == 0 ? '' : '; '}${act(st[s].act)} ${st[s].n}`; }
+        out += '\n';
+      } else { out += `${act(state[keys[i]].act)} ${state[keys[i]].n}\n`; }
+    }
     return out;
   }
   build(jbnf, init) {
-    let prods = [ ...init ], prod, p, list, t, { K } = this, { findKLookaheads } = State;
+    let prods = [ ...init ], { K, allowConflicts } = this, prod, p, list, t, { findKLookaheads } = State;
     let hasl = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compareLazy(p)) { return a[i]; } } return false; };
     let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; };
     this.state = {};
     for (let i = 0; i < prods.length; i++) {
       prod = prods[i];
       if (prod.cursor == prod.right.length) {
-        let lbl;
+        let lbl, o;
         for (let x = 0, la = prod.lookaheads.list, xl = la.length; x < xl; x++) {
           lbl = la[x].toString();
-          if (this.state[lbl]) { console.log(`ERROR: r/r conflict`); console.log(this.toString(prods)); return false; }
-          this.state[lbl] = { act: prod.index == 0 ? ACCEPT : REDUCE, n: prod.index, l: prod.right.length, virt: prod.virt };
+          o = { act: prod.index == 0 ? ACCEPT : REDUCE, n: prod.index, l: prod.right.length, virt: prod.virt };
+          if (this.state[lbl]) {
+            if (allowConflicts) {
+              let n = this.state[lbl];
+              if (n instanceof Array) { n.push(o); }
+              else { n = [ n, o ]; }
+              o = n;
+            } else {
+              Printer.log(Channels.NORMAL, `ERROR: r/r conflict`);
+              Printer.log(Channels.NORMAL, this.toString(prods));
+              return false;
+            }
+          }
+          this.state[lbl] = o;
         }
         continue;
       }
@@ -56,7 +80,7 @@ export class State {
     return true;
   }
   static copyOf(state) {
-    let out = new State();
+    let out = new State(state.K, state.allowConflicts);
     out.productions = [];
     // I know there's probably a better way, but... FIXME ?
     out.state = JSON.parse(JSON.stringify(state.state));

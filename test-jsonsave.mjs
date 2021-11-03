@@ -3,14 +3,14 @@ import { SDT } from './compiler/sdt.mjs';
 import { bnfpre, parseBNF } from './bnfhelper.mjs';
 import { Token } from './compiler/tokens/token.mjs';
 import { TERM, NONTERM } from './compiler/consts.mjs';
+import { Printer, Channels } from './compiler/printer.mjs';
 import fs from 'fs';
+Printer.channel = Channels.VERBOSE;
 
-console.log('outer', parseBNF(fs.readFileSync('bnf/math.bnf').toString(), (b) => {
-  let sdt = new SDT(), t = new MathTokenizer('1+1'), exp;
-  sdt.create(b, bnfpre);
-  sdt.useCLR();
-  exp = JSON.stringify(sdt, null, '  ');
-  sdt = new SDT();
-  sdt.load(JSON.parse(exp));
-  console.log('inner', sdt.run(t, (b) => { console.log(`Result: ${b}`); }));
-}));
+parseBNF(fs.readFileSync('bnf/bnf.bnf').toString(), false)
+.then((b) => {
+  let sdt = new SDT();
+  sdt.create(b);
+  sdt.useDefault();
+  fs.writeFileSync('bnf/bnf2.sdt', JSON.stringify(sdt.toJSON()));
+});

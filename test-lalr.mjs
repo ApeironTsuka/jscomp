@@ -4,14 +4,16 @@ import { Token } from './compiler/tokens/token.mjs';
 import { TERM, NONTERM } from './compiler/consts.mjs';
 import fs from 'fs';
 
-console.log('outer', parseBNF(`
+parseBNF(`
 <axiom> ::= <A> <A>
 <A> ::= a <A>
       | b
-`, (b) => {
+`)
+.then((b) => {
   let sdt = new SDT();
   sdt.create(b);
   if (!sdt.useLALR()) { console.log('LALR false'); return; }
   let a = [ new Token(TERM, 'a'), new Token(TERM, 'a'), new Token(TERM, 'b'), new Token(TERM, 'b'), new Token(TERM, '$') ];
-  console.log('inner', sdt.run(a, (b) => {}));
-}));
+  return sdt.run(a);
+})
+.then((b) => {});

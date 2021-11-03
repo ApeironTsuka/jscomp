@@ -9,7 +9,9 @@ export class Tokens {
   get length() { return this.list.length; }
   truncate(len) { this.list.length = Math.min(this.list.length, len); }
   add(t) { this.list.push(Token.copyOf(t)); }
-  addAll(ts) { let t = ts.list||t; for (let i = 0, l = t.length; i < l; i++) { this.add(Token.copyOf(t[i])); } }
+  has(t) { for (let i = 0, { list } = this, l = list.length; i < l; i++) { if (list[i].compare(t)) { return true; } } return false; }
+  addAll(ts) { let t = ts.list || ts; for (let i = 0, l = t.length; i < l; i++) { this.add(Token.copyOf(t[i])); } }
+  hasAll(ts) { let t = ts.list || ts; for (let i = 0, l = t.length; i < l; i++) { if (!this.has(t[i])) { return false; } } return true; }
   append(ts) {
     let t = ts.list ? ts.list : ts instanceof Array ? ts : [ ts ];
     for (let z = 0, zl = t.length; z < zl; z++) { this.add(t[z]); }

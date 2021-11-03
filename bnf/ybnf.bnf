@@ -1,8 +1,18 @@
 # terminals with [] are special ones created by the tokenizer. They're effectively pseudo non-terminals
-<axiom> ::= <root>
+.globals {
+  function mkprod(f, left, right, k = 0) {
+    let out = { tokens: [] }, hasCode = right.length > 0 && right[right.length - 1].label == 'code';
+    for (let i = f, l = right.length - 1 - (hasCode ? 1 : 0) + k; i < l; i++) { out.tokens.push(right[i].value); }
+    if (hasCode) { out.func = `(left, right) => { ${right[right.length - 1].value} }`; }
+    return out;
+  }
+}
+.K 1
+.type LALR
+.axiom root
 
 <root> ::= {<definition>}+
-         { let out = {}; for (let i = 0, l = right.length; i < l; i++) { out[right[i].value[0]] = right[i].value[1]; } left.value = out; }
+         { let out = {}; for (let i = 0, l = right.length; i < l; i++) { out[right[i].value[0]] = right[i].value[1]; } left.value = { definitions: out, tags: {} }; }
 
 <definition> ::= [nonterm] : <productions> ;
                { left.value = [ right[0].value, right[2].value ]; }

@@ -9,15 +9,16 @@ export class CTokenizer extends Tokenizer {
     let { str, K } = this, line = 1, char = 0, offset = 0, o;
     let identr = /^([a-zA-Z_][a-zA-Z0-9_]*)/, floatr = /^([0-9]*\.[0-9]+)/, decr = /^([1-9][0-9]*|0)/, hexr = /^(0[xX][a-fA-F0-9]+)/,
         octr = /^(0[0-7]+)/, binr = /^(0[bB][0-1]+)/, opr = /^(<<=|>>=|\+\+|--|<<|>>|->|<=|>=|\+=|-=|\*=|\/=|&=|^=|%=|\|=|\+|-|\*|\/|&|\^|%|!|\||~|\[|\]|<|>|\.|=|;|,|\(|\)|{|})/,
-        wordsr = /^(short|int|long|char|float|double|bool|void|unsigned|signed|struct|union|const|static|typedef|return|switch|case|default|while|for|do|class|goto|continue|break|if|else|enum|sizeof|this|null|true|false|f|l|u|e)/;
+        wordsr = /^(short|int|long|char|float|double|bool|void|unsigned|signed|struct|union|const|static|typedef|return|switch|case|default|while|for|do|class|goto|continue|break|if|else|enum|sizeof|this|null|true|false)\b/i; // f l u e
     while (true) {
       if (str[offset] == ' ') { char++; offset++; continue; }
       if (str[offset] == '\n') { char = 0; line++; offset++; continue; }
       if (offset != 0) { str = str.substr(offset); offset = 0; }
       if (str == '') { break; }
-      if ((o = wordsr.exec(str)) || (o = hexr.exec(str)) || (o = octr.exec(str)) || (o = binr.exec(str)) ||
-          (o = floatr.exec(str)) || (o = decr.exec(str)) || (o = opr.exec(str)) ||
-          (o = identr.exec(str))) { yield new CToken(o[0], line, char); o = o[0].length; offset += o; char += o; }
+      if (o = wordsr.exec(str)) { let t = new CToken(o[0], line, char); t.noRegex = true; yield t; o = o[0].length; offset += o; char += o; }
+      else if ((o = hexr.exec(str)) || (o = octr.exec(str)) || (o = binr.exec(str)) ||
+               (o = floatr.exec(str)) || (o = decr.exec(str)) || (o = opr.exec(str)) ||
+               (o = identr.exec(str))) { yield new CToken(o[0], line, char); o = o[0].length; offset += o; char += o; }
       else if ((str[0] == '"') || (str[0] == "'")) {
         let s = '', c = 0, k = 1;
         while (true) {

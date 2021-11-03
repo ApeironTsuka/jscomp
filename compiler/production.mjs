@@ -22,6 +22,10 @@ export class Production {
     for (let i = 0, ar = a.right, br = b.right, l = ar.length; i < l; i++) { if (!ar[i].compare(br[i])) { return false; } }
     return true;
   }
+  contains(b) {
+    if (!this.compareLazy(b)) { return false; }
+    return this.lookaheads.contains(b.lookaheads);
+  }
   toString() {
     let right = '', la = '';
     for (let i = 0, r = this.right, l = r.length; i < l; i++) { right += `${this.cursor == i ? '.' : ''}${r[i]} `; }
@@ -31,14 +35,14 @@ export class Production {
     return `(${this.index}) ${this.left.label} -> ${right}${la ? ',' + la : ''}`;
   }
   static copyOf(prod) {
-    let left = Token.copyOf(prod.left), { cursor } = prod;
-    let a, right = a = [];
-    for (let i = 0, r = prod.right, l = r.length; i < l; i++) { a.push(Token.copyOf(r[i])); }
-    left = new Production(left, right, prod.func);
-    left.lookaheads.copyOf(prod.lookaheads);
+    let left = Token.copyOf(prod.left), { lookaheads, cursor, index, virt, func, right } = prod;
+    let a = [];
+    for (let i = 0, r = right, l = r.length; i < l; i++) { a.push(Token.copyOf(r[i])); }
+    left = new Production(left, a, func);
+    left.lookaheads.copyOf(lookaheads);
     left.cursor = cursor;
-    left.index = prod.index;
-    left.virt = prod.virt;
+    left.index = index;
+    left.virt = virt;
     return left;
   }
 }
