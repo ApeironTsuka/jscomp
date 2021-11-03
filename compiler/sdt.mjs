@@ -102,7 +102,7 @@ export class SDT {
       if (ind === undefined) { return; }
       let f = fcache[ind];
       if (f) { f(left, right); }
-      else { left.value = right[0].value; }
+      else if (right.length == 1) { left.value = right[0].value; }
     };
     if (!gen) { if (!this.useCLR()) { return Promise.reject(new Error('Failed to generate')); } gen = this.gen; }
     if (!gen.parse(tokens)) { return Promise.reject(new Error('Failed to parse')); }

@@ -58,22 +58,22 @@ export class StateGraph {
           p = StateGraph.findStateLazy(states, state);
           if (p != -1) {
             if (!states[p].contains(state)) {
-            mergeState(state, states[p]);
-            if (!recurse) { Printer.log(Channels.DEBUG, `Marking state ${p} as dirty`); states[p].dirty = true; }
-            else {
-              // for each shift in states[p], recursively rebuild that state. This spreads the lookahead changes to any already-existing state
-              for (let zzi = 0, zkeys = Object.keys(states[p].state), zzl = zkeys.length; zzi < zzl; zzi++) {
-                let n = states[p].state[zkeys[zzi]];
-                if (!(n instanceof Array)) { n = [ n ]; }
-                for (let ii = 0, l = n.length; ii < l; ii++) {
-                  if (n[ii].act != SHIFT) { continue; }
-                  if (p == i) { continue; }
-                  Printer.log(Channels.DEBUG, `Respawning state ${p} (from ${i})`, (states[p].dirty ? '(it was dirty)' : ''));
-                  spawnStates(p, getSeeds(states[p].productions), true);
-                  if (states[p].dirty) { delete states[p].dirty; }
+              mergeState(state, states[p]);
+              if (!recurse) { Printer.log(Channels.DEBUG, `Marking state ${p} as dirty`); states[p].dirty = true; }
+              else {
+                // for each shift in states[p], recursively rebuild that state. This spreads the lookahead changes to any already-existing state
+                for (let zzi = 0, zkeys = Object.keys(states[p].state), zzl = zkeys.length; zzi < zzl; zzi++) {
+                  let n = states[p].state[zkeys[zzi]];
+                  if (!(n instanceof Array)) { n = [ n ]; }
+                  for (let ii = 0, l = n.length; ii < l; ii++) {
+                    if (n[ii].act != SHIFT) { continue; }
+                    if (p == i) { continue; }
+                    Printer.log(Channels.DEBUG, `Respawning state ${p} (from ${i})`, (states[p].dirty ? '(it was dirty)' : ''));
+                    spawnStates(p, getSeeds(states[p].productions), true);
+                    if (states[p].dirty) { delete states[p].dirty; }
+                  }
                 }
               }
-            }
             }
           }
         }
