@@ -192,35 +192,36 @@ export class LRBase { // Should never be used directly
               this.#reduceStack(tmpStack, cht, tokenBuf);
               if (tmpCharts = this.#can(ACCEPT, tmpStack, tokenBuf)) { Printer.log('accept1'); stacks.push(tmpStack); accept = true; continue; }
               {
-                let reduceList = [ tmpStack ], shiftList = [];
+                let reduceList = [ tmpStack ], shiftList = [], reduceLog = {}, sas;
                 while (reduceList.length) {
                   for (let i = 0; i < reduceList.length; i++) {
+                    if (this.#can(SHIFT, reduceList[i], tokenBuf)) { shiftList.push(duplicateStack(reduceList[i])); }
                     if (tmpCharts = this.#can(REDUCE, reduceList[i], tokenBuf)) {
-                      Printer.log(Channels.DEBUG, 'reduce2', tokenLabel, st, i, reduceList.length, stackAsString(reduceList[i]));
-                      if (tmpCharts.length == 1) {
-                        this.#reduceStack(reduceList[i], tmpCharts[0], tokenBuf);
-                        if (this.#can(ACCEPT, reduceList[i], tokenBuf)) { Printer.log('accept2'); stacks.push(reduceList[i]); reduceList.splice(i, 1); i--; accept = true; continue; }
-                        if (this.#can(SHIFT, reduceList[i], tokenBuf)) { shiftList.push(reduceList[i]); reduceList.splice(i, 1); i--; }
-                      } else {
-                        for (let z = 0, zl = tmpCharts.length; z < zl; z++) {
-                          let t = duplicateStack(reduceList[i]);
-                          this.#reduceStack(t, tmpCharts[z], tokenBuf);
-                          if (this.#can(ACCEPT, t, tokenBuf)) { Printer.log('accept3'); stacks.push(t); accept = true; continue; }
-                          if (this.#can(SHIFT, t, tokenBuf)) { shiftList.push(t); continue; }
-                          reduceList.push(t);
+                      sas = stackAsString(reduceList[i]);
+                      Printer.log(Channels.DEBUG, 'reduce2', tokenLabel, st, i, reduceList.length, sas);
+                      if (!reduceLog[sas]) {
+                        reduceLog[sas] = true;
+                        if (tmpCharts.length == 1) {
+                          this.#reduceStack(reduceList[i], tmpCharts[0], tokenBuf);
+                          if (this.#can(ACCEPT, reduceList[i], tokenBuf)) { Printer.log('accept2'); stacks.push(reduceList[i]); reduceList.splice(i, 1); i--; accept = true; continue; }
+                          if (this.#can(SHIFT, reduceList[i], tokenBuf)) { shiftList.push(reduceList[i]); reduceList.splice(i, 1); i--; }
+                        } else {
+                          for (let z = 0, zl = tmpCharts.length; z < zl; z++) {
+                            let t = duplicateStack(reduceList[i]);
+                            this.#reduceStack(t, tmpCharts[z], tokenBuf);
+                            if (this.#can(ACCEPT, t, tokenBuf)) { Printer.log('accept3'); stacks.push(t); accept = true; continue; }
+                            if (this.#can(SHIFT, t, tokenBuf)) { shiftList.push(t); continue; }
+                            reduceList.push(t);
+                          }
+                          reduceList.splice(i, 1); i--;
                         }
-                        reduceList.splice(i, 1); i--;
-                      }
-                    } else {
-                      if (this.#can(SHIFT, reduceList[i], tokenBuf)) { shiftList.push(reduceList[i]); }
-                      reduceList.splice(i, 1);
-                      i--;
-                    }
+                      } else { reduceList.splice(i, 1); i--; }
+                    } else { reduceList.splice(i, 1); i--; }
                   }
                 }
                 for (let i = 0, l = shiftList.length; i < l; i++) {
                   if (tmpCharts = this.#can(SHIFT, shiftList[i], tokenBuf)) {
-                    Printer.log(Channels.DEBUG, 'shift2', tokenLabel, st, stackAsString(tmpStack));
+                    Printer.log(Channels.DEBUG, 'shift2', tokenLabel, st, i, shiftList.length, stackAsString(shiftList[i]));
                     this.#shiftStack(shiftList[i], tmpCharts, token);
                     stacks.push(shiftList[i]);
                   }
@@ -229,6 +230,7 @@ export class LRBase { // Should never be used directly
               break;
             case ACCEPT:
               shift(stack, 2);
+              Printer.log(Channels.DEBUG, 'accept', tokenLabel, st, stackAsString(stack));
               if ((stack.length == 1) && (stack[0] == 0)) { this.trees.push(stack.tree); if (stacks.length == 1) { run = false; c = cl; break; } }
               else if (stacks.length == 1) {
                 Printer.log(Channels.NORMAL, `Unexpected ACCEPT at ${cursor}`);
@@ -247,6 +249,7 @@ export class LRBase { // Should never be used directly
       tokenBuf.list.shift(); addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
     }
     // recursively remove "virtual" productions, moving their children into their place
+    Printer.log(Channels.DEBUG, 'tree total', this.trees.length);
     for (let i = 0, l = this.trees.length; i < l; i++) { fixVirts(this.trees[i]); }
     this.tree = this.trees[0];
     return true;
