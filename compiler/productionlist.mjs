@@ -178,8 +178,8 @@ export class ProductionList {
           if (r[z].label == prod.left.label) {
             let u = new TokensList();
             u.add(new Tokens());
-            for (let k = z + 1; k <= zl; k++) {
-              if (k == zl) { u.append(l); break; }
+            for (let k = z + 1, kl = Math.min(z + 1 + K, zl); k <= kl; k++) {
+              if (k == kl) { u.append(l); break; }
               if (r[k].type == TERM) { u.append(r[k]); }
               else {
                 let nus = [], f = first[r[k].label];

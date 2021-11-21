@@ -110,7 +110,9 @@ export class LRBase { // Should never be used directly
       }
       if (!chart[tokenLabel]) { tokenLabel = tokenBuf.toString(); }
       if (!chart[tokenLabel]) {
-        Printer.log(Channels.NORMAL, `Unexpected '${tokenLabel}' at index ${cursor}`);
+        Printer.log(Channels.NORMAL, this.error = `Unexpected '${tokenLabel}' at index ${cursor}`);
+        this.errorToken = token;
+        this.errorStack = stack;
         Printer.log(Channels.NORMAL, tokenBuf);
         Printer.log(Channels.NORMAL, stack);
         Printer.log(Channels.NORMAL, Object.keys(chart));
@@ -126,17 +128,17 @@ export class LRBase { // Should never be used directly
         case ACCEPT:
           shift(stack, 2);
           if ((stack.length == 1) && (stack[0] == 0)) { this.tree = stack.tree; run = false; break; }
-          Printer.log(Channels.NORMAL, `Unexpected ACCEPT at ${cursor}`);
+          Printer.log(Channels.NORMAL, this.error = `Unexpected ACCEPT at ${cursor}`);
           Printer.log(Channels.NORMAL, stack);
           return false;
-        default: Printer.log(Channels.NORMAL, `DEFAULT ${token.label}`); Printer.log(Channels.NORMAL, chart[tokenLabel]); return false;
+        default: Printer.log(Channels.NORMAL, this.error = `DEFAULT ${token.label}`); Printer.log(Channels.NORMAL, chart[tokenLabel]); return false;
       }
     }
     fixVirts(this.tree);
     return true;
   }
   parseGLR(tokens) {
-    let stacks = [ [ 0 ] ], cursor = 0, { charts } = this.graph, { K } = this, chart, run = true, remStack = false, isGen = tokens instanceof Tokenizer, token, tokenLabel, tokenBuf = new Tokens();
+    let stacks = [ [ 0 ] ], cursor = 0, { charts } = this.graph, { K } = this, chart, run = true, remStack = false, isGen = tokens instanceof Tokenizer, token, tokenLabel, tokenBuf = new Tokens(), lastStack;
     this.trees = [];
     stacks[0].tree = [];
     let addNextToken = () => {
@@ -156,7 +158,15 @@ export class LRBase { // Should never be used directly
     token = tokenBuf.list[0];
     tokenLabel = token.isRegex ? token.orig.label : token.label;
     while (run) {
-      if (stacks.length == 0) { Printer.log(Channels.NORMAL, 'All stacks failed'); return false; }
+      if (stacks.length == 0) {
+        this.errorToken = token;
+        this.errorStack = lastStack;
+        Printer.log(Channels.NORMAL, this.error = 'All stacks failed');
+        Printer.log(Channels.NORMAL, tokenBuf);
+        Printer.log(Channels.NORMAL, lastStack);
+        Printer.log(Channels.NORMAL, charts[lastStack[0]]);
+        return false;
+      }
       for (let st = 0, stl = stacks.length; st < stl; st++) {
         let stack = stacks[st];
         if (!stack) { continue; }
@@ -168,12 +178,13 @@ export class LRBase { // Should never be used directly
         if (!chart[tokenLabel]) { tokenLabel = tokenBuf.toString(); }
         if (!chart[tokenLabel]) {
           if (stacks.length == 1) {
-            Printer.log(Channels.NORMAL, `Unexpected '${tokenLabel}' at index ${cursor}`);
+            Printer.log(Channels.NORMAL, this.error = `Unexpected '${tokenLabel}' at index ${cursor}`);
+            this.errorToken = token;
             Printer.log(Channels.NORMAL, tokenBuf);
             Printer.log(Channels.NORMAL, stack);
             Printer.log(Channels.NORMAL, Object.keys(chart));
             return false;
-          } else { stacks.splice(st, 1); st--; continue; }
+          } else { lastStack = stack; stacks.splice(st, 1); st--; continue; }
         }
         Printer.log(Channels.DEBUG, 'loop', tokenLabel, st, stacks.length, stackAsString(stack));
         let ch = chart[tokenLabel], accept = false, tmpStack, tmpCharts;
@@ -187,7 +198,7 @@ export class LRBase { // Should never be used directly
               break;
             case REDUCE:
               tmpStack = duplicateStack(stack);
-              if (c == 0) { stacks[st] = undefined; }
+              if (c == 0) { lastStack = stack; stacks[st] = undefined; }
               Printer.log(Channels.DEBUG, 'reduce1', tokenLabel, st, stackAsString(tmpStack));
               this.#reduceStack(tmpStack, cht, tokenBuf);
               if (tmpCharts = this.#can(ACCEPT, tmpStack, tokenBuf)) { Printer.log('accept1'); stacks.push(tmpStack); accept = true; continue; }
@@ -216,7 +227,7 @@ export class LRBase { // Should never be used directly
                           reduceList.splice(i, 1); i--;
                         }
                       } else { reduceList.splice(i, 1); i--; }
-                    } else { reduceList.splice(i, 1); i--; }
+                    } else { lastStack = reduceList[i]; reduceList.splice(i, 1); i--; }
                   }
                 }
                 for (let i = 0, l = shiftList.length; i < l; i++) {
@@ -224,7 +235,7 @@ export class LRBase { // Should never be used directly
                     Printer.log(Channels.DEBUG, 'shift2', tokenLabel, st, i, shiftList.length, stackAsString(shiftList[i]));
                     this.#shiftStack(shiftList[i], tmpCharts, token);
                     stacks.push(shiftList[i]);
-                  }
+                  } else { lastStack = shiftList[i]; }
                 }
               }
               break;
@@ -233,14 +244,14 @@ export class LRBase { // Should never be used directly
               Printer.log(Channels.DEBUG, 'accept', tokenLabel, st, stackAsString(stack));
               if ((stack.length == 1) && (stack[0] == 0)) { this.trees.push(stack.tree); if (stacks.length == 1) { run = false; c = cl; break; } }
               else if (stacks.length == 1) {
-                Printer.log(Channels.NORMAL, `Unexpected ACCEPT at ${cursor}`);
+                Printer.log(Channels.NORMAL, this.error = `Unexpected ACCEPT at ${cursor}`);
                 Printer.log(Channels.NORMAL, stack);
                 return false;
               }
               stacks.splice(st, 1);
               st--;
               break;
-            default: Printer.log(Channels.NORMAL, `DEFAULT ${token.label}`, '\n', ch); return false;
+            default: Printer.log(Channels.NORMAL, this.error = `DEFAULT ${token.label}`, '\n', ch); return false;
           }
         }
         if (run == false) { break; }

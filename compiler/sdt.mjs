@@ -87,16 +87,16 @@ export class SDT {
     if (!this.gen.load(this.bnf, this.K = K)) { return false; }
     return true;
   }
-  run(tokens) {
+  run(tokens, extern) {
     let { gen, bnf } = this, fcache = [], out, ret, globalState = this.globalState = {};
     let compileFuncs = () => {
-      let code = '"use strict";\nlet globalState = arguments[0], fcache = arguments[1];\n';
+      let code = '"use strict";\nlet globalState = arguments[0], fcache = arguments[1], extern = arguments[2];\n';
       if ((bnf.tags) && (bnf.tags.globals)) { code += `${bnf.tags.globals}\n`; }
       if (this.globals) { code += `${this.globals}\n`; }
       for (let i = 0, { list } = bnf, l = list.length; i < l; i++) {
         if (list[i].func) { code += `fcache[${i}] = ${list[i].func};\n`; }
       }
-      Function(code)(globalState, fcache);
+      Function(code)(globalState, fcache, extern);
     };
     let callFunc = (ind, left, right) => {
       if (ind === undefined) { return; }
@@ -104,8 +104,8 @@ export class SDT {
       if (f) { f(left, right); }
       else if (right.length == 1) { left.value = right[0].value; }
     };
-    if (!gen) { if (!this.useCLR()) { return Promise.reject(new Error('Failed to generate')); } gen = this.gen; }
-    if (!gen.parse(tokens)) { return Promise.reject(new Error('Failed to parse')); }
+    if (!gen) { if (!this.useDefault()) { return Promise.reject(new Error('Failed to generate')); } gen = this.gen; }
+    if (!gen.parse(tokens)) { return Promise.reject(new Error(`Failed to parse: ${gen.error}`)); }
     compileFuncs();
     let recurse = (p) => {
       let ind;
