@@ -9,9 +9,9 @@ function mergeState(s1, s2) { // merge s1 into s2
     for (let k = 0, kA = prodsA[i].lookaheads, kB = prodsB[i].lookaheads, kl = kA.size; k < kl; k++) {
       if (kB.add(kA.list[k])) {
         let s = kA.list[k].toString();
-        if ((s1.state[s]) && (!s2.state[s])) {
+        if ((s1.state.has(s)) && (!s2.state.has(s))) {
           // I know it's not the best way, but.. FIXME ?
-          s2.state[s] = JSON.parse(JSON.stringify(s1.state[s]));
+          s2.state.set(s, JSON.parse(JSON.stringify(s1.state.get(s))));
         }
       }
     }
@@ -22,10 +22,10 @@ export class StateGraph {
     let states = [], { findKLookaheads } = State, state = new State(K, allowConflicts), tokens = [], p, k, z, o;
     let addToken = (t) => { if (tokens.indexOf(t) == -1) { tokens.push(t); } };
     let getSeeds = (prods) => {
-      let z = {};
+      let z = new Map();
       // loop over this state's productions looking for seed productions
       for (let x = 0, xl = prods.length; x < xl; x++) {
-        let lbl, p2, kb, map = {};
+        let lbl, p2, kb, map = new Map();
         // this production is a reduce, so skip it
         if (prods[x].cursor == prods[x].right.length) { continue; }
         k = kb = prods[x].right[prods[x].cursor];
@@ -36,12 +36,12 @@ export class StateGraph {
           la[k].list.pop();
           for (let z = 0, zl = la[k].list.length; z < zl; z++) { addToken(la[k].list[z].label); }
           lbl = la[k].toString();
-          if (!map[lbl]) {
-            if (!z[lbl]) { z[lbl] = { type: kb.type, prods: [] }; }
+          if (!map.has(lbl)) {
+            if (!z.has(lbl)) { z.set(lbl, { type: kb.type, prods: [] }); }
             p2 = Production.copyOf(prods[x]);
             p2.cursor++;
-            z[lbl].prods.push(p2);
-            map[lbl] = true;
+            z.get(lbl).prods.push(p2);
+            map.set(lbl, true);
           }
         }
       }
@@ -49,9 +49,9 @@ export class StateGraph {
     };
     let spawnStates = (i, z, recurse = false) => {
       let p;
-      for (let x = 0, keys = Object.keys(z), xl = keys.length; x < xl; x++) {
+      for (let [ zkey, zvalue ] of z.entries()) {
         state = new State(K, allowConflicts);
-        if (!state.build(jbnf, z[keys[x]].prods)) { Printer.log(Channels.NORMAL, `Error in state ${states.length} (above) Incomplete states below`); this.printGraph(states); return false; }
+        if (!state.build(jbnf, zvalue.prods)) { Printer.log(Channels.NORMAL, `Error in state ${states.length} (above) Incomplete states below`); this.printGraph(states); return false; }
         // check to see if this state already exists, and if not, add it to the list
         p = StateGraph.findState(states, state);
         if ((p == -1) && (optimize)) {
@@ -62,8 +62,7 @@ export class StateGraph {
               if (!recurse) { Printer.log(Channels.DEBUG, `Marking state ${p} as dirty`); states[p].dirty = true; }
               else {
                 // for each shift in states[p], recursively rebuild that state. This spreads the lookahead changes to any already-existing state
-                for (let zzi = 0, zkeys = Object.keys(states[p].state), zzl = zkeys.length; zzi < zzl; zzi++) {
-                  let n = states[p].state[zkeys[zzi]];
+                for (let n of states[p].state.values()) {
                   if (!(n instanceof Array)) { n = [ n ]; }
                   for (let ii = 0, l = n.length; ii < l; ii++) {
                     if (n[ii].act != SHIFT) { continue; }
@@ -78,9 +77,9 @@ export class StateGraph {
           }
         }
         if (p == -1) { p = states.length; states.push(state); }
-        o = { act: z[keys[x]].type == TERM ? SHIFT : GOTO, n: p };
-        if (states[i].state[keys[x]]) {
-          let s = states[i].state[keys[x]];
+        o = { act: zvalue.type == TERM ? SHIFT : GOTO, n: p };
+        if (states[i].state.has(zkey)) {
+          let s = states[i].state.get(zkey);
           if (allowConflicts) {
             if (s instanceof Array) {
               let keep = true;
@@ -95,13 +94,13 @@ export class StateGraph {
             o = s;
           } else {
             if ((s.act == SHIFT) && (s.n != p)) {
-              Printer.log(Channels.NORMAL, `Error: s/${states[i].state[keys[x]].act == SHIFT ? 's' : 'r'} conflict\nError in state ${i}, ${keys[x]} shifts to state ${p} but reduces to ${states[i].state[keys[x]].n}`);
+              Printer.log(Channels.NORMAL, `Error: s/${states[i].state.get(zkey).act == SHIFT ? 's' : 'r'} conflict\nError in state ${i}, ${keys[x]} shifts to state ${p} but reduces to ${states[i].state.get(zkey).n}`);
               this.printGraph(states);
               return false;
             }
           }
         }
-        states[i].state[keys[x]] = o;
+        states[i].state.set(zkey, o);
       }
     };
     states.push(state);
@@ -143,19 +142,20 @@ export class StateGraph {
     let charts = this.charts = [], chart, { states } = this;
     // all states are created and valid, now generate the state transition table
     for (let i = 0, l = states.length; i < l; i++) {
-      charts[i] = chart = {};
-      for (let x = 0, keys = Object.keys(states[i].state), xl = keys.length; x < xl; x++) {
-        let o = states[i].state[keys[x]];
-        if (chart[keys[x]]) {
+      charts[i] = chart = new Map();
+      for (let [ statekey, statev ] of states[i].state.entries()) {
+        let o = statev;
+        if (chart.has(statekey)) {
+          let chartv = chart.get(statekey);
           if (allowConflicts) {
-            if (chart[keys[x]] instanceof Array) { o = chart[keys[x]]; chart[keys[x]].push(states[i].state[keys[x]]); }
-            else { o = [ chart[keys[x]], states[i].state[keys[x]] ]; }
+            if (chartv instanceof Array) { o = chartv; o.push(statev); }
+            else { o = [ chartv, statev ]; }
           } else {
-            Printer.log(Channels.NORMAL, `Error: ${chart[keys[x]].act} ${states[i].state[keys[x]].act}`);
+            Printer.log(Channels.NORMAL, `Error: ${chartv.act} ${statev.act}`);
             return false;
           }
         }
-        chart[keys[x]] = o;
+        chart.set(statekey, o);
       }
     }
   }
@@ -166,14 +166,12 @@ export class StateGraph {
     for (let i = 0, l = states.length; i < l; i++) { Printer.log(Channels.VERBOSE, `I${i}\n${states[i]}\n`); }
   }
   printCharts() {
-    let chart;
     let act = (a) => a == SHIFT ? 'shift' : a == REDUCE ? 'reduce' : a == GOTO ? 'goto' : 'accept';
     if (Printer.channel > Channels.VERBOSE) { return; }
     for (let i = 0, charts = this.charts, l = charts.length; i < l; i++) {
-      chart = charts[i];
       Printer.log(Channels.VERBOSE, `I${i}`);
-      for (let x = 0, keys = Object.keys(charts[i]), xl = keys.length; x < xl; x++) {
-        let ca = chart[keys[x]], out = `${keys[x]}: `;
+      for (let [ chkey, ca ] of charts[i].entries()) {
+        let out = `${chkey}: `;
         if (!(ca instanceof Array)) { ca = [ ca ]; }
         for (let c = 0, cl = ca.length; c < cl; c++) {
           let ch = ca[c];
@@ -191,24 +189,20 @@ export class StateGraph {
     let addGoto = (a) => { if (goto.indexOf(a) == -1) { goto.push(a); } };
     if (Printer.channel > Channels.VERBOSE) { return; }
     for (let i = 0, l = charts.length; i < l; i++) {
-      let chart = charts[i];
-      for (let x = 0, keys = Object.keys(chart), xl = keys.length; x < xl; x++) {
-        let ca = chart[keys[x]];
+      for (let [ chkey, ca ] of charts[i].entries()) {
         if (!(ca instanceof Array)) { ca = [ ca ]; }
         for (let c = 0, cl = ca.length; c < cl; c++) {
           let ch = ca[c];
           switch (ch.act) {
-            case GOTO: addGoto(keys[x]); break;
-            default: addAction(keys[x]); break;
+            case GOTO: addGoto(chkey); break;
+            default: addAction(chkey); break;
           }
         }
       }
     }
     for (let i = 0, charts = this.charts, l = charts.length; i < l; i++) {
-      let chart = charts[i];
       cells[i] = [];
-      for (let x = 0, keys = Object.keys(chart), xl = keys.length; x < xl; x++) {
-        let ca = chart[keys[x]];
+      for (let [ chkey, ca ] of charts[i].entries()) {
         if (!(ca instanceof Array)) { ca = [ ca ]; }
         for (let c = 0, cl = ca.length; c < cl; c++) {
           let ch = ca[c];
@@ -216,10 +210,10 @@ export class StateGraph {
             case GOTO: cells[i][goto.indexOf(keys[x]) + action.length] = act(ch.act, ch.n); break;
             default:
               {
-                let cell = cells[i][action.indexOf(keys[x])];
+                let cell = cells[i][action.indexOf(chkey)];
                 if (!cell) { cell = act(ch.act, ch.n); }
                 else { cell += ',' + act(ch.act, ch.n); }
-                cells[i][action.indexOf(keys[x])] = cell;
+                cells[i][action.indexOf(chkey)] = cell;
               }
               break;
           }

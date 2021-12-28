@@ -9,13 +9,13 @@ import { Printer, Channels } from './printer.mjs';
 export class SDT {
   create(jbnf, predef = undefined, K = -1) {
     let bnf = this.bnf = new ProductionList();
-    if ((K == -1) && (jbnf.tags) && (jbnf.tags.K)) { this.K = parseInt(jbnf.tags.K); }
+    if ((K == -1) && (jbnf.tags) && (jbnf.tags.has('K'))) { this.K = parseInt(jbnf.tags.get('K')); }
     else if (K == -1) { this.K = 1; }
     else { this.K = K; }
     bnf.build(jbnf);
     if (predef) {
       let pd = this.predef = new ProductionList();
-      pd.build({ definitions: predef, tags: {} }, true);
+      pd.build({ definitions: predef, tags: new Map() }, true);
       for (let i = 0, list = pd.list, l = list.length; i < l; i++) { list[i].index = bnf.list.length; bnf.list.push(list[i]); }
       for (let i = 0, list = pd.regexes.list, l = list.length; i < l; i++) { bnf.regexes.list.push(list[i]); bnf.regexes.hash[list[i].label] = list[i]; }
     }
@@ -26,13 +26,13 @@ export class SDT {
     bnf.printFollowOf();
   }
   load(obj, globals = '') {
-    let bnf = this.bnf = new ProductionList(), gen, list = [], p, regexes = { list: [], hash: {} }, t = obj.gen;
+    let bnf = this.bnf = new ProductionList(), gen, list = [], p, regexes = { list: [], hash: {} }, t = obj.gen, charts = [];
     switch (obj.gen) {
       case GEN_CLR: default: gen = this.gen = new CLR(); break;
       case GEN_LALR: gen = this.gen = new LALR(); break;
       case GEN_GLR: gen = this.gen = new GLR(); break;
       case GEN_DEFAULT:
-        t = obj.tags ? obj.tags.type ? obj.tags.type.toUpperCase() : '' : '';
+        t = obj.tags ? obj.tags.has('type') ? obj.tags.get('type').toUpperCase() : '' : '';
         switch (t) {
           case 'CLR': default: gen = this.gen = new CLR(); t = GEN_CLR; break;
           case 'LALR': gen = this.gen = new LALR(); t = GEN_LALR; break;
@@ -52,16 +52,17 @@ export class SDT {
       regexes.list.push(o);
       regexes.hash[o.label] = o;
     }
+    for (let i = 0, ch = obj.charts, l = ch.length; i < l; i++) { charts.push(new Map(ch[i])); }
     gen.bnf = bnf;
-    gen.graph = { charts: obj.charts };
+    gen.graph = { charts };
     gen.K = this.K = obj.K;
     bnf.list = list;
     bnf.regexes = regexes;
-    bnf.tags = obj.tags;
+    bnf.tags = new Map(obj.tags);
     this.globals = globals;
   }
   useDefault(K = this.K) {
-    let { bnf } = this, t = bnf.tags ? bnf.tags.type ? bnf.tags.type.toUpperCase() : '' : '';
+    let { bnf } = this, t = bnf.tags ? bnf.tags.has('type') ? bnf.tags.get('type').toUpperCase() : '' : '';
     switch (t) {
       case 'CLR': return this.useCLR(K);
       case 'LALR': return this.useLALR(K);
@@ -85,13 +86,14 @@ export class SDT {
     this.gen = new GLR();
     this.genn = GEN_GLR;
     if (!this.gen.load(this.bnf, this.K = K)) { return false; }
+    if ((this.bnf.tags) && (this.bnf.tags.has('trim'))) { this.gen.trim = this.bnf.tags.get('trim'); }
     return true;
   }
   run(tokens, extern) {
     let { gen, bnf } = this, fcache = [], out, ret, globalState = this.globalState = {};
     let compileFuncs = () => {
       let code = '"use strict";\nlet globalState = arguments[0], fcache = arguments[1], extern = arguments[2];\n';
-      if ((bnf.tags) && (bnf.tags.globals)) { code += `${bnf.tags.globals}\n`; }
+      if ((bnf.tags) && (bnf.tags.has('globals'))) { code += `${bnf.tags.get('globals')}\n`; }
       if (this.globals) { code += `${this.globals}\n`; }
       for (let i = 0, { list } = bnf, l = list.length; i < l; i++) {
         if (list[i].func) { code += `fcache[${i}] = ${list[i].func};\n`; }
@@ -119,7 +121,7 @@ export class SDT {
     return Promise.resolve(gen.tree[0].value);
   }
   toJSON() {
-    let productions = [], regexes = [], prods = this.bnf.list, regs = this.bnf.regexes.list;
+    let productions = [], regexes = [], prods = this.bnf.list, regs = this.bnf.regexes.list, charts = [];
     for (let i = 0, l = prods.length; i < l; i++) {
       let { left, func, virt, index } = prods[i];
       productions.push({ left, func: func ? func.toString() : undefined, virt, index });
@@ -128,6 +130,7 @@ export class SDT {
       let { label, regex } = regs[i];
       regexes.push({ label, regex: regex.toString() });
     }
-    return { productions, charts: this.gen.graph.charts, tags: this.bnf.tags, regexes, K: this.K, gen: this.genn === undefined ? GEN_DEFAULT : this.genn };
+    for (let i = 0, ch = this.gen.graph.charts, l = ch.length; i < l; i++) { charts.push([...ch[i]]); }
+    return { productions, charts, tags: [...this.bnf.tags], regexes, K: this.K, gen: this.genn === undefined ? GEN_DEFAULT : this.genn };
   }
 }

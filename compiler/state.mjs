@@ -1,5 +1,5 @@
 import { Production } from './production.mjs';
-import { TERM, SHIFT, REDUCE, GOTO, ACCEPT } from './consts.mjs';
+import { TERM, SHIFT, REDUCE, GOTO, ACCEPT, mapToJson, mapFromJson } from './consts.mjs';
 import { Token } from './tokens/token.mjs';
 import { Tokens } from './tokens.mjs';
 import { Printer, Channels } from './printer.mjs';
@@ -27,12 +27,12 @@ export class State {
     let { state } = this, out = '';
     let act = (a) => { return a == SHIFT ? 'shift' : a == REDUCE ? 'reduce' : a == GOTO ? 'goto' : a == ACCEPT ? 'accept' : 'error'; };
     for (let i = 0, prods = p || this.productions, l = prods.length; i < l; i++) { out += `${prods[i]}\n`; }
-    for (let i = 0, keys = Object.keys(state), l = keys.length; i < l; i++) {
-      out += `${keys[i]}=`;
-      if (state[keys[i]] instanceof Array) {
-        for (let s = 0, st = state[keys[i]], sl = st.length; s < sl; s++) { out += `${s == 0 ? '' : '; '}${act(st[s].act)} ${st[s].n}`; }
+    for (let [ statekey, statev ] of state.entries()) {
+      out += `${statekey}=`;
+      if (statev instanceof Array) {
+        for (let s = 0, st = statev, sl = st.length; s < sl; s++) { out += `${s == 0 ? '' : '; '}${act(st[s].act)} ${st[s].n}`; }
         out += '\n';
-      } else { out += `${act(state[keys[i]].act)} ${state[keys[i]].n}\n`; }
+      } else { out += `${act(statev.act)} ${statev.n}\n`; }
     }
     return out;
   }
@@ -40,7 +40,7 @@ export class State {
     let prods = [ ...init ], { K, allowConflicts } = this, prod, p, list, t, { findKLookaheads } = State;
     let hasl = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compareLazy(p)) { return a[i]; } } return false; };
     let has = (a, p) => { for (let i = 0, l = a.length; i < l; i++) { if (a[i].compare(p)) { return a[i]; } } return false; };
-    this.state = {};
+    this.state = new Map();
     for (let i = 0; i < prods.length; i++) {
       prod = prods[i];
       if (prod.cursor == prod.right.length) {
@@ -48,9 +48,9 @@ export class State {
         for (let x = 0, la = prod.lookaheads.list, xl = la.length; x < xl; x++) {
           lbl = la[x].toString();
           o = { act: prod.index == 0 ? ACCEPT : REDUCE, n: prod.index, l: prod.right.length, virt: prod.virt };
-          if (this.state[lbl]) {
+          if (this.state.has(lbl)) {
             if (allowConflicts) {
-              let n = this.state[lbl];
+              let n = this.state.get(lbl);
               if (n instanceof Array) { n.push(o); }
               else { n = [ n, o ]; }
               o = n;
@@ -60,7 +60,7 @@ export class State {
               return false;
             }
           }
-          this.state[lbl] = o;
+          this.state.set(lbl, o);
         }
         continue;
       }
@@ -83,7 +83,7 @@ export class State {
     let out = new State(state.K, state.allowConflicts);
     out.productions = [];
     // I know there's probably a better way, but... FIXME ?
-    out.state = JSON.parse(JSON.stringify(state.state));
+    out.state = JSON.parse(JSON.stringify(state.state, mapToJson), mapFromJson);
     for (let i = 0, prods = state.productions, l = prods.length; i < l; i++) { out.productions.push(Production.copyOf(prods[i])); }
     return out;
   }
@@ -94,7 +94,7 @@ export class State {
       while (la.length < K) {
         let f = p.right[p.cursor+1];
         if (!f) {
-          let fos = jbnf.follow[p.left.label], overflow = K - la.length;
+          let fos = jbnf.follow.get(p.left.label), overflow = K - la.length;
           for (let i = 0, l = fos.list.length; i < l; i++) {
             let nla = Tokens.copyOf(la);
             for (let x = 0; x < overflow && x < fos.list[i].length; x++) { nla.add(fos.list[i].list[x]); }
@@ -110,7 +110,7 @@ export class State {
         } else if (f.type == TERM) {
           la.add(f);
         } else {
-          let fos = jbnf.first[f.label];
+          let fos = jbnf.first.get(f.label);
           for (let i = 0, l = fos.list.length; i < l; i++) {
             let nla = Tokens.copyOf(la);
             nla.addAll(fos.list[i]);

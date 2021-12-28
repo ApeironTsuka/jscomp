@@ -35,6 +35,7 @@ export class LRBase { // Should never be used directly
     this.graph = new StateGraph();
     this.optimize = false;
     this.allowConflicts = false;
+    this.trim = false;
   }
   #findByRegex(label) {
     let works = [], { tokens } = this.graph;
@@ -52,13 +53,13 @@ export class LRBase { // Should never be used directly
   #can(action, stack, tokenBuf) {
     let { charts } = this.graph, chart = charts[stack[0]], token = tokenBuf.list[0], { label } = token, out = [], ca;
     if ((token.isRegex) && (!token.noRegex)) {
-      if (chart[label]) { token = token.orig; }
+      if (chart.has(label)) { token = token.orig; }
       else { label = token.label; }
     }
     if (!chart) { throw new Error('Chart is undefined?'); }
-    if (!chart[label]) { label = tokenBuf.toString(); }
-    if (!chart[label]) { return false; }
-    ca = chart[label];
+    if (!chart.has(label)) { label = tokenBuf.toString(); }
+    if (!chart.has(label)) { return false; }
+    ca = chart.get(label);
     if (!(ca instanceof Array)) { ca = [ ca ]; }
     for (let i = 0, l = ca.length; i < l; i++) {
       if (ca[i].act == action) { if (action == SHIFT) { return ca[i]; } out.push(ca[i]); }
@@ -79,8 +80,8 @@ export class LRBase { // Should never be used directly
       let lbl = Tokens.copyOf(tokenBuf);
       lbl.list.unshift(stack[0]);
       lbl.list.pop();
-      stack.unshift(charts[stack[1]][lbl.toString()].n);
-    } else { stack.unshift(charts[stack[1]][stack[0].label].n); }
+      stack.unshift(charts[stack[1]].get(lbl.toString()).n);
+    } else { stack.unshift(charts[stack[1]].get(stack[0].label).n); }
   }
   parse(tokens) { return this.allowConflicts ? this.parseGLR(tokens) : this.parseSimple(tokens); }
   parseSimple(tokens) {
@@ -105,40 +106,40 @@ export class LRBase { // Should never be used directly
     while (run) {
       chart = charts[stack[0]];
       if (token.isRegex) {
-        if (chart[tokenLabel]) { token = token.orig; }
+        if (chart.has(tokenLabel)) { token = token.orig; }
         else { tokenLabel = token.label; }
       }
-      if (!chart[tokenLabel]) { tokenLabel = tokenBuf.toString(); }
-      if (!chart[tokenLabel]) {
+      if (!chart.has(tokenLabel)) { tokenLabel = tokenBuf.toString(); }
+      if (!chart.has(tokenLabel)) {
         Printer.log(Channels.NORMAL, this.error = `Unexpected '${tokenLabel}' at index ${cursor}`);
         this.errorToken = token;
         this.errorStack = stack;
         Printer.log(Channels.NORMAL, tokenBuf);
         Printer.log(Channels.NORMAL, stack);
-        Printer.log(Channels.NORMAL, Object.keys(chart));
+        Printer.log(Channels.NORMAL, chart);
         return false;
       }
-      switch (chart[tokenLabel].act) {
+      switch (chart.get(tokenLabel).act) {
         case SHIFT:
-          this.#shiftStack(stack, chart[tokenLabel], token);
+          this.#shiftStack(stack, chart.get(tokenLabel), token);
           tokenBuf.list.shift(); addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
           if (!token) { token = new Token(TERM, '$'); }
           break;
-        case REDUCE: this.#reduceStack(stack, chart[tokenLabel], tokenBuf); break;
+        case REDUCE: this.#reduceStack(stack, chart.get(tokenLabel), tokenBuf); break;
         case ACCEPT:
           shift(stack, 2);
           if ((stack.length == 1) && (stack[0] == 0)) { this.tree = stack.tree; run = false; break; }
           Printer.log(Channels.NORMAL, this.error = `Unexpected ACCEPT at ${cursor}`);
           Printer.log(Channels.NORMAL, stack);
           return false;
-        default: Printer.log(Channels.NORMAL, this.error = `DEFAULT ${token.label}`); Printer.log(Channels.NORMAL, chart[tokenLabel]); return false;
+        default: Printer.log(Channels.NORMAL, this.error = `DEFAULT ${token.label}`); Printer.log(Channels.NORMAL, chart.get(tokenLabel)); return false;
       }
     }
     fixVirts(this.tree);
     return true;
   }
   parseGLR(tokens) {
-    let stacks = [ [ 0 ] ], cursor = 0, { charts } = this.graph, { K } = this, chart, run = true, remStack = false, isGen = tokens instanceof Tokenizer, token, tokenLabel, tokenBuf = new Tokens(), lastStack;
+    let stacks = [ [ 0 ] ], cursor = 0, { charts } = this.graph, { K, trim } = this, chart, run = true, remStack = false, isGen = tokens instanceof Tokenizer, token, tokenLabel, tokenBuf = new Tokens(), lastStack, lastToken;
     this.trees = [];
     stacks[0].tree = [];
     let addNextToken = () => {
@@ -159,7 +160,7 @@ export class LRBase { // Should never be used directly
     tokenLabel = token.isRegex ? token.orig.label : token.label;
     while (run) {
       if (stacks.length == 0) {
-        this.errorToken = token;
+        this.errorToken = lastToken;
         this.errorStack = lastStack;
         Printer.log(Channels.NORMAL, this.error = 'All stacks failed');
         Printer.log(Channels.NORMAL, tokenBuf);
@@ -172,22 +173,23 @@ export class LRBase { // Should never be used directly
         if (!stack) { continue; }
         chart = charts[stack[0]];
         if (token.isRegex) {
-          if (chart[tokenLabel]) { token = token.orig; }
+          if (chart.has(tokenLabel)) { token = token.orig; }
           else { tokenLabel = token.label; }
         }
-        if (!chart[tokenLabel]) { tokenLabel = tokenBuf.toString(); }
-        if (!chart[tokenLabel]) {
+        if (!chart.has(tokenLabel)) { tokenLabel = tokenBuf.toString(); }
+        if (!chart.has(tokenLabel)) {
           if (stacks.length == 1) {
             Printer.log(Channels.NORMAL, this.error = `Unexpected '${tokenLabel}' at index ${cursor}`);
             this.errorToken = token;
+            this.errorStack = stack;
             Printer.log(Channels.NORMAL, tokenBuf);
             Printer.log(Channels.NORMAL, stack);
-            Printer.log(Channels.NORMAL, Object.keys(chart));
+            Printer.log(Channels.NORMAL, chart);
             return false;
           } else { lastStack = stack; stacks.splice(st, 1); st--; continue; }
         }
         Printer.log(Channels.DEBUG, 'loop', tokenLabel, st, stacks.length, stackAsString(stack));
-        let ch = chart[tokenLabel], accept = false, tmpStack, tmpCharts;
+        let ch = chart.get(tokenLabel), accept = false, tmpStack, tmpCharts;
         if (!(ch instanceof Array)) { ch = [ ch ]; }
         for (let c = 0, cl = ch.length; c < cl; c++) {
           let cht = ch[c];
@@ -257,7 +259,10 @@ export class LRBase { // Should never be used directly
         if (run == false) { break; }
       }
       for (let i = 0, l = stacks.length; i < l; i++) { if (!stacks[i]) { stacks.splice(i, 1); i--; l--; } }
+      if ((trim) && (trim > 0)) { if (stacks.length > trim) { stacks.length = trim; } }
+      lastToken = token;
       tokenBuf.list.shift(); addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
+      Printer.log(Channels.DEBUG, 'next', tokenLabel);
     }
     // recursively remove "virtual" productions, moving their children into their place
     Printer.log(Channels.DEBUG, 'tree total', this.trees.length);
