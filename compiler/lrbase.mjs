@@ -132,7 +132,7 @@ export class LRBase { // Should never be used directly
           Printer.log(Channels.NORMAL, this.error = `Unexpected ACCEPT at ${cursor}`);
           Printer.log(Channels.NORMAL, stack);
           return false;
-        default: Printer.log(Channels.NORMAL, this.error = `DEFAULT ${token.label}`); Printer.log(Channels.NORMAL, chart.get(tokenLabel)); return false;
+        default: Printer.log(Channels.NORMAL, this.error = `DEFAULT-SIMPLE ${token.label}`); Printer.log(Channels.NORMAL, chart.get(tokenLabel)); return false;
       }
     }
     fixVirts(this.tree);
@@ -253,7 +253,7 @@ export class LRBase { // Should never be used directly
               stacks.splice(st, 1);
               st--;
               break;
-            default: Printer.log(Channels.NORMAL, this.error = `DEFAULT ${token.label}`, '\n', ch); return false;
+            default: Printer.log(Channels.NORMAL, this.error = `DEFAULT-GLR ${token.label}`, '\n', ch, '\n', c); return false;
           }
         }
         if (run == false) { break; }

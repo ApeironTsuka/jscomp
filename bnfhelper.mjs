@@ -62,7 +62,7 @@ export function parseBNF(sbnf, honorEmpty = true) {
   let t = new BNFTokenizer(sbnf), sdt = new SDT(),
       b = BNFToken.honorEmpty, p;
   BNFToken.honorEmpty = honorEmpty;
-  sdt.load(JSON.parse(fs.readFileSync('./bnf/bnf.sdt', 'utf8')));
+  sdt.load(JSON.parse(fs.readFileSync(new URL('./bnf/bnf.sdt', import.meta.url), 'utf8')));
   p = sdt.run(t);
   BNFToken.honorEmpty = b;
   return p;
