@@ -3,10 +3,11 @@ import { BNFToken } from '../tokens/bnftoken.mjs';
 import { Tokenizer } from './tokenizer.mjs';
 import { TERM, NONTERM, ZEROORONE, ONEPLUS, ZEROPLUS } from '../consts.mjs';
 export class BNFTokenizer extends Tokenizer {
-  constructor(str, keepWS = false) { super(); this.str = str; this.keep = keepWS; }
-  *parse() {
-    let { str, K } = this, lines = str.split(/\n/), line, arr, inCode = false, bcount = 0, code = '', seenSet = false, seenBar = false;
+  constructor(str, keepWS = false) { super(str); this.keep = keepWS; }
+  async *parse() {
+    let { reader, K } = this, inCode = false, bcount = 0, code = '', seenSet = false, seenBar = false, arr, lines = [], line;
     let nonterm = /^(\{?)(\<(.*?)\>)((\})([+*?]))?$/, d;
+    while ((line = await reader.read()) !== false) { lines.push(line); }
     for (let i = 0, l = lines.length; i < l; i++) {
       line = lines[i].replace(/^ */, '').replace(/ *$/, '');
       if (!inCode) {
@@ -60,7 +61,7 @@ export class BNFTokenizer extends Tokenizer {
           if (line[x] == '{') { bcount++; }
           else if (line[x] == '}') { bcount--; }
         }
-        if (this.keep) { code += '\n' + lines[i]; }
+        if (this.keep) { code += '\n' + line; }
         else { code += line; }
         if (bcount == 0) {
           code = code.replace(/\s*?\}$/, '');

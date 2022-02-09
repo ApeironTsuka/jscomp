@@ -7,8 +7,8 @@ import { TERM, NONTERM, SHIFT, REDUCE, ACCEPT } from './consts.mjs';
 import { Printer, Channels } from './printer.mjs';
 function duplicateStack(s) { let out = [ ...s ]; out.tree = duplicateTree(s.tree); return out; }
 function duplicateTree(t) {
-  let out = [];
-  for (let i = 0, l = t.length; i < l; i++) { out.push(TreeToken.copyOfWithChildren(t[i], t[i].virt, true)); }
+  let out = new Array(t.length);
+  for (let i = 0, l = t.length; i < l; i++) { out[i] = TreeToken.copyOfWithChildren(t[i], t[i].virt, true); }
   return out;
 }
 function stackAsString(stack) {
@@ -83,13 +83,13 @@ export class LRBase { // Should never be used directly
       stack.unshift(charts[stack[1]].get(lbl.toString()).n);
     } else { stack.unshift(charts[stack[1]].get(stack[0].label).n); }
   }
-  parse(tokens) { return this.allowConflicts ? this.parseGLR(tokens) : this.parseSimple(tokens); }
-  parseSimple(tokens) {
+  async parse(tokens) { return this.allowConflicts ? this.#parseGLR(tokens) : this.#parseSimple(tokens); }
+  async #parseSimple(tokens) {
     let stack = [ 0 ], cursor = 0, { charts } = this.graph, { K } = this, chart, run = true, isGen = tokens instanceof Tokenizer, token, tokenLabel, tokenBuf = new Tokens();
     stack.tree = [];
-    let addNextToken = () => {
+    let addNextToken = async () => {
       let t, tr;
-      if (isGen) { t = tokens.next(); }
+      if (isGen) { t = await tokens.next(); }
       else { if (cursor < tokens.length) { t = tokens[cursor++]; } else { t = tokens[tokens.length-1]; } }
       if (t) {
         if (!t.noRegex) {
@@ -99,8 +99,8 @@ export class LRBase { // Should never be used directly
         tokenBuf.list.push(t);
       }
     };
-    if ((isGen) && (!tokens.working)) { tokens.init(K); }
-    for (let i = 0; i < K; i++) { addNextToken(); }
+    if ((isGen) && (!tokens.working)) { await tokens.init(K); }
+    for (let i = 0; i < K; i++) { await addNextToken(); }
     token = tokenBuf.list[0];
     tokenLabel = token.isRegex ? token.orig.label : token.label;
     while (run) {
@@ -122,7 +122,7 @@ export class LRBase { // Should never be used directly
       switch (chart.get(tokenLabel).act) {
         case SHIFT:
           this.#shiftStack(stack, chart.get(tokenLabel), token);
-          tokenBuf.list.shift(); addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
+          tokenBuf.list.shift(); await addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
           if (!token) { token = new Token(TERM, '$'); }
           break;
         case REDUCE: this.#reduceStack(stack, chart.get(tokenLabel), tokenBuf); break;
@@ -138,13 +138,13 @@ export class LRBase { // Should never be used directly
     fixVirts(this.tree);
     return true;
   }
-  parseGLR(tokens) {
+  async #parseGLR(tokens) {
     let stacks = [ [ 0 ] ], cursor = 0, { charts } = this.graph, { K, trim } = this, chart, run = true, remStack = false, isGen = tokens instanceof Tokenizer, token, tokenLabel, tokenBuf = new Tokens(), lastStack, lastToken;
     this.trees = [];
     stacks[0].tree = [];
-    let addNextToken = () => {
+    let addNextToken = async () => {
       let t, tr;
-      if (isGen) { t = tokens.next(); }
+      if (isGen) { t = await tokens.next(); }
       else { if (cursor < tokens.length) { t = tokens[cursor++]; } else { t = tokens[tokens.length-1]; } }
       if (t) {
         if (!t.noRegex) {
@@ -154,8 +154,8 @@ export class LRBase { // Should never be used directly
         tokenBuf.list.push(t);
       }
     };
-    if ((isGen) && (!tokens.working)) { tokens.init(K); }
-    for (let i = 0; i < K; i++) { addNextToken(); }
+    if ((isGen) && (!tokens.working)) { await tokens.init(K); }
+    for (let i = 0; i < K; i++) { await addNextToken(); }
     token = tokenBuf.list[0];
     tokenLabel = token.isRegex ? token.orig.label : token.label;
     while (run) {
@@ -188,22 +188,22 @@ export class LRBase { // Should never be used directly
             return false;
           } else { lastStack = stack; stacks.splice(st, 1); st--; continue; }
         }
-        Printer.log(Channels.DEBUG, 'loop', tokenLabel, st, stacks.length, stackAsString(stack));
+        //Printer.log(Channels.DEBUG, 'loop', tokenLabel, st, stacks.length, stackAsString(stack));
         let ch = chart.get(tokenLabel), accept = false, tmpStack, tmpCharts;
         if (!(ch instanceof Array)) { ch = [ ch ]; }
         for (let c = 0, cl = ch.length; c < cl; c++) {
           let cht = ch[c];
           switch (cht.act) {
             case SHIFT:
-              Printer.log(Channels.DEBUG, 'shift1', tokenLabel, st, stackAsString(stack));
+              //Printer.log(Channels.DEBUG, 'shift1', tokenLabel, st, stackAsString(stack));
               this.#shiftStack(stack, cht, token);
               break;
             case REDUCE:
               tmpStack = duplicateStack(stack);
               if (c == 0) { lastStack = stack; stacks[st] = undefined; }
-              Printer.log(Channels.DEBUG, 'reduce1', tokenLabel, st, stackAsString(tmpStack));
+              //Printer.log(Channels.DEBUG, 'reduce1', tokenLabel, st, stackAsString(tmpStack));
               this.#reduceStack(tmpStack, cht, tokenBuf);
-              if (tmpCharts = this.#can(ACCEPT, tmpStack, tokenBuf)) { Printer.log('accept1'); stacks.push(tmpStack); accept = true; continue; }
+              if (tmpCharts = this.#can(ACCEPT, tmpStack, tokenBuf)) { /*Printer.log(Channels.DEBUG, 'accept1');*/ stacks.push(tmpStack); accept = true; continue; }
               {
                 let reduceList = [ tmpStack ], shiftList = [], reduceLog = {}, sas;
                 while (reduceList.length) {
@@ -211,18 +211,18 @@ export class LRBase { // Should never be used directly
                     if (this.#can(SHIFT, reduceList[i], tokenBuf)) { shiftList.push(duplicateStack(reduceList[i])); }
                     if (tmpCharts = this.#can(REDUCE, reduceList[i], tokenBuf)) {
                       sas = stackAsString(reduceList[i]);
-                      Printer.log(Channels.DEBUG, 'reduce2', tokenLabel, st, i, reduceList.length, sas);
+                      //Printer.log(Channels.DEBUG, 'reduce2', tokenLabel, st, i, reduceList.length, sas);
                       if (!reduceLog[sas]) {
                         reduceLog[sas] = true;
                         if (tmpCharts.length == 1) {
                           this.#reduceStack(reduceList[i], tmpCharts[0], tokenBuf);
-                          if (this.#can(ACCEPT, reduceList[i], tokenBuf)) { Printer.log('accept2'); stacks.push(reduceList[i]); reduceList.splice(i, 1); i--; accept = true; continue; }
+                          if (this.#can(ACCEPT, reduceList[i], tokenBuf)) { /*Printer.log(Channels.DEBUG, 'accept2');*/ stacks.push(reduceList[i]); reduceList.splice(i, 1); i--; accept = true; continue; }
                           if (this.#can(SHIFT, reduceList[i], tokenBuf)) { shiftList.push(reduceList[i]); reduceList.splice(i, 1); i--; }
                         } else {
                           for (let z = 0, zl = tmpCharts.length; z < zl; z++) {
                             let t = duplicateStack(reduceList[i]);
                             this.#reduceStack(t, tmpCharts[z], tokenBuf);
-                            if (this.#can(ACCEPT, t, tokenBuf)) { Printer.log('accept3'); stacks.push(t); accept = true; continue; }
+                            if (this.#can(ACCEPT, t, tokenBuf)) { /*Printer.log(Channels.DEBUG, 'accept3');*/ stacks.push(t); accept = true; continue; }
                             if (this.#can(SHIFT, t, tokenBuf)) { shiftList.push(t); continue; }
                             reduceList.push(t);
                           }
@@ -234,7 +234,7 @@ export class LRBase { // Should never be used directly
                 }
                 for (let i = 0, l = shiftList.length; i < l; i++) {
                   if (tmpCharts = this.#can(SHIFT, shiftList[i], tokenBuf)) {
-                    Printer.log(Channels.DEBUG, 'shift2', tokenLabel, st, i, shiftList.length, stackAsString(shiftList[i]));
+                    //Printer.log(Channels.DEBUG, 'shift2', tokenLabel, st, i, shiftList.length, stackAsString(shiftList[i]));
                     this.#shiftStack(shiftList[i], tmpCharts, token);
                     stacks.push(shiftList[i]);
                   } else { lastStack = shiftList[i]; }
@@ -243,7 +243,7 @@ export class LRBase { // Should never be used directly
               break;
             case ACCEPT:
               shift(stack, 2);
-              Printer.log(Channels.DEBUG, 'accept', tokenLabel, st, stackAsString(stack));
+              //Printer.log(Channels.DEBUG, 'accept', tokenLabel, st, stackAsString(stack));
               if ((stack.length == 1) && (stack[0] == 0)) { this.trees.push(stack.tree); if (stacks.length == 1) { run = false; c = cl; break; } }
               else if (stacks.length == 1) {
                 Printer.log(Channels.NORMAL, this.error = `Unexpected ACCEPT at ${cursor}`);
@@ -261,11 +261,11 @@ export class LRBase { // Should never be used directly
       for (let i = 0, l = stacks.length; i < l; i++) { if (!stacks[i]) { stacks.splice(i, 1); i--; l--; } }
       if ((trim) && (trim > 0)) { if (stacks.length > trim) { stacks.length = trim; } }
       lastToken = token;
-      tokenBuf.list.shift(); addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
-      Printer.log(Channels.DEBUG, 'next', tokenLabel);
+      tokenBuf.list.shift(); await addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
+      //Printer.log(Channels.DEBUG, 'next', tokenLabel);
     }
     // recursively remove "virtual" productions, moving their children into their place
-    Printer.log(Channels.DEBUG, 'tree total', this.trees.length);
+    //Printer.log(Channels.DEBUG, 'tree total', this.trees.length);
     for (let i = 0, l = this.trees.length; i < l; i++) { fixVirts(this.trees[i]); }
     this.tree = this.trees[0];
     return true;

@@ -91,7 +91,7 @@ export class SDT {
     if ((this.bnf.tags) && (this.bnf.tags.has('trim'))) { this.gen.trim = this.bnf.tags.get('trim'); }
     return true;
   }
-  run(tokens, extern) {
+  async run(tokens, extern) {
     let { gen, bnf } = this, fcache = [], out, ret, globalState = this.globalState = {};
     let compileFuncs = () => {
       let code = '"use strict";\nlet globalState = arguments[0], fcache = arguments[1], extern = arguments[2];\n';
@@ -109,7 +109,7 @@ export class SDT {
       else if (right.length == 1) { left.value = right[0].value; }
     };
     if (!gen) { if (!this.useDefault()) { return Promise.reject(new Error('Failed to generate')); } gen = this.gen; }
-    if (!gen.parse(tokens)) { return Promise.reject(new Error(`Failed to parse: ${gen.error}`)); }
+    if (!(await gen.parse(tokens))) { return Promise.reject(new Error(`Failed to parse: ${gen.error}`)); }
     compileFuncs();
     let recurse = (p) => {
       let ind;

@@ -17,5 +17,5 @@ export class Token {
     if (extra) { x.repeat = token.repeat; x.regex = token.regex; }
     return x;
   }
-  static copyAll(list, extra) { let out = []; for (let i = 0, l = list.length; i < l; i++) { out.push(Token.copyOf(list[i], extra)); } return out; }
+  static copyAll(list, extra) { let out = new Array(list.length); for (let i = 0, l = list.length; i < l; i++) { out[i] = Token.copyOf(list[i], extra); } return out; }
 }

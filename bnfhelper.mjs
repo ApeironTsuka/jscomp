@@ -58,7 +58,7 @@ let ybnfpre_ = new Map([
 for (let bnfpair of bnfpre.entries()) { ybnfpre_[bnfpair[0]] = bnfpair[1]; }
 export const ybnfpre = ybnfpre_;
 // a couple helpers to make using this monstrosity easier
-export function parseBNF(sbnf, honorEmpty = true) {
+export async function parseBNF(sbnf, honorEmpty = true) {
   let t = new BNFTokenizer(sbnf), sdt = new SDT(),
       b = BNFToken.honorEmpty, p;
   BNFToken.honorEmpty = honorEmpty;
@@ -67,7 +67,7 @@ export function parseBNF(sbnf, honorEmpty = true) {
   BNFToken.honorEmpty = b;
   return p;
 }
-export function parseYBNF(sbnf) {
+export async function parseYBNF(sbnf) {
   let t = new YBNFTokenizer(sbnf), sdt = new SDT();
   sdt.load(JSON.parse(fs.readFileSync('./bnf/ybnf.sdt', 'utf8')));
   return sdt.run(t);

@@ -4,13 +4,15 @@ import { CToken } from '../tokens/ctoken.mjs';
 import { TERM } from '../consts.mjs';
 // This could certainly be done differently/better, but is sufficient for testing purposes
 export class CTokenizer extends Tokenizer {
-  constructor(str) { super(); this.str = str; }
-  *parse() {
-    let { str, K } = this, line = 1, char = 0, offset = 0, o;
+  constructor(str) { super(str, true); }
+  async *parse() {
+    let { reader, K } = this, line = 1, char = 0, offset = 0, o;
     let identr = /^([a-zA-Z_][a-zA-Z0-9_]*)/, floatr = /^([0-9]*\.[0-9]+)/, decr = /^([1-9][0-9]*|0)/, hexr = /^(0[xX][a-fA-F0-9]+)/,
         octr = /^(0[0-7]+)/, binr = /^(0[bB][0-1]+)/, opr = /^(<<=|>>=|\+\+|--|<<|>>|->|<=|>=|\+=|-=|\*=|\/=|&=|^=|%=|\|=|\+|-|\*|\/|&|\^|%|!|\||~|\[|\]|<|>|\.|=|;|,|\(|\)|{|})/,
         wordsr = /^(short|int|long|char|float|double|bool|void|unsigned|signed|struct|union|const|static|typedef|return|switch|case|default|while|for|do|class|goto|continue|break|if|else|enum|sizeof|this|null|true|false)\b/i; // f l u e
     while (true) {
+      o = await reader.read();
+      if (o !== false) { str += o; }
       if (str[offset] == ' ') { char++; offset++; continue; }
       if (str[offset] == '\n') { char = 0; line++; offset++; continue; }
       if (offset != 0) { str = str.substr(offset); offset = 0; }

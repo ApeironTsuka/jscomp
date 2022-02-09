@@ -3,9 +3,9 @@ import { BNFToken } from '../tokens/bnftoken.mjs';
 import { Tokenizer } from './tokenizer.mjs';
 import { TERM, NONTERM } from '../consts.mjs';
 export class CFGBNFTokenizer extends Tokenizer {
-  constructor(str) { super(); this.str = str; }
-  *parse() {
-    let { str, K } = this, lines = str.split(/\n/), line, d;
+  constructor(str) { super(str); }
+  async *parse() {
+    let { reader, K } = this, lines = [], line, d;
     let nonterms = {
       'letter': true,
       'digit': true,
@@ -21,16 +21,17 @@ export class CFGBNFTokenizer extends Tokenizer {
       'string': true,
       'space': true
     };
-    for (let i = 0, l = lines.length; i < l; i++) {
-      if (lines[i][0] == ' ') { continue; }
-      else if (lines[i][0] == '*') { continue; }
-      else { nonterms[lines[i].split(' ')[0]] = true; }
+    while ((line = await reader.read()) !== false) {
+      lines.push(line);
+      if (line[0] == ' ') { continue; }
+      else if (line[0] == '*') { continue; }
+      else { nonterms[line.split(' ')[0]] = true; }
     }
     for (let i = 0, l = lines.length; i < l; i++) {
-      lines[i] = lines[i].replace(/\t/g, ' ').replace(/ *$/, '');
-      if (lines[i] == '') { continue; }
-      if (lines[i][0] == '#') { continue; }
-      line = lines[i].split(' ');
+      line = lines[i].replace(/\t/g, ' ').replace(/ *$/, '');
+      if (line == '') { continue; }
+      if (line[0] == '#') { continue; }
+      line = line.split(' ');
       switch (line[0]) {
         case '': yield new BNFToken('[space]', undefined, i, 0); d = 1; break;
         case '*':

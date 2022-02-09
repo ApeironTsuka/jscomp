@@ -28,12 +28,13 @@ export class TokensList {
     return true;
   }
   copyOf(tl) {
-    this.list.length = 0;
-    for (let i = 0, { list } = this, l2 = (tl.list ? tl.list : tl), l = l2.length; i < l; i++) { list.push(Tokens.copyOf(l2[i])); }
+    let l2 = (tl.list ? tl.list : tl);
+    this.list = new Array(l2.length);
+    for (let i = 0, { list } = this, l = l2.length; i < l; i++) { list[i] = Tokens.copyOf(l2[i]); }
   }
   flat(K) {
-    let out = [];
-    for (let i = 0, { list } = this, l = list.length; i < l; i++) { out.push(list[i].flat(K)); }
+    let out = new Array(this.list.length);
+    for (let i = 0, { list } = this, l = list.length; i < l; i++) { out[i] = list[i].flat(K); }
     return out;
   }
   toString() {

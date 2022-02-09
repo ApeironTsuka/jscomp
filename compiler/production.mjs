@@ -36,8 +36,8 @@ export class Production {
   }
   static copyOf(prod) {
     let left = Token.copyOf(prod.left), { lookaheads, cursor, index, virt, func, right } = prod;
-    let a = [];
-    for (let i = 0, r = right, l = r.length; i < l; i++) { a.push(Token.copyOf(r[i])); }
+    let a = new Array(right.length);
+    for (let i = 0, r = right, l = r.length; i < l; i++) { a[i] = Token.copyOf(r[i]); }
     left = new Production(left, a, func);
     left.lookaheads.copyOf(lookaheads);
     left.cursor = cursor;

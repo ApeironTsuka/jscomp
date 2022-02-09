@@ -81,10 +81,10 @@ export class State {
   }
   static copyOf(state) {
     let out = new State(state.K, state.allowConflicts);
-    out.productions = [];
+    let productions = out.productions = new Array(state.productions.length);
     // I know there's probably a better way, but... FIXME ?
     out.state = JSON.parse(JSON.stringify(state.state, mapToJson), mapFromJson);
-    for (let i = 0, prods = state.productions, l = prods.length; i < l; i++) { out.productions.push(Production.copyOf(prods[i])); }
+    for (let i = 0, prods = state.productions, l = prods.length; i < l; i++) { productions[i] = Production.copyOf(prods[i]); }
     return out;
   }
   static findKLookaheads(jbnf, K, _prod, _p) {
@@ -96,8 +96,8 @@ export class State {
         if (!f) {
           let fos = jbnf.follow.get(p.left.label), overflow = K - la.length;
           for (let i = 0, l = fos.list.length; i < l; i++) {
-            let nla = Tokens.copyOf(la);
-            for (let x = 0; x < overflow && x < fos.list[i].length; x++) { nla.add(fos.list[i].list[x]); }
+            let nla = Tokens.copyOf(la), fl = fos.list[i];
+            for (let x = 0, flx = fl.list, fll = fl.length; x < overflow && x < fll; x++) { nla.add(flx[x]); }
             while (nla.length < K) { nla.add(new Token(TERM, '$')); }
             nla.truncate(K);
             list.add(nla);
