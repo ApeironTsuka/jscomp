@@ -13,7 +13,7 @@ parseBNF(`
   let sdt = new SDT();
   sdt.create(b);
   if (!sdt.useLALR()) { console.log('LALR false'); return; }
-  let a = [ new Token(TERM, 'a'), new Token(TERM, 'a'), new Token(TERM, 'b'), new Token(TERM, 'b'), new Token(TERM, '$') ];
+  let a = [ new Token(TERM, 'a'), new Token(TERM, 'a'), new Token(TERM, 'b'), new Token(TERM, 'b'), Token.endToken ];
   return sdt.run(a);
 })
 .then((b) => {});

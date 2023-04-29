@@ -98,13 +98,13 @@ export class State {
           for (let i = 0, l = fos.list.length; i < l; i++) {
             let nla = Tokens.copyOf(la), fl = fos.list[i];
             for (let x = 0, flx = fl.list, fll = fl.length; x < overflow && x < fll; x++) { nla.add(flx[x]); }
-            while (nla.length < K) { nla.add(new Token(TERM, '$')); }
+            while (nla.length < K) { nla.add(Token.endToken); }
             nla.truncate(K);
             list.add(nla);
           }
           break;
-        } else if (f.label == '$') {
-          while (la.length < K) { la.add(new Token(TERM, '$')); }
+        } else if (f.label == Token.endToken.label) {
+          while (la.length < K) { la.add(Token.endToken); }
           list.add(la);
           break;
         } else if (f.type == TERM) {

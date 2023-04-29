@@ -18,6 +18,8 @@ c.cfg from [here.](https://www.cs.dartmouth.edu/~mckeeman/cs48/references/c.html
 ~~Both test-cbnf and test-cybnf fail due to r/r conflict. Still not sure why. The follow-of generation might still be wrong..~~
 test-cbnf now succeeds (now uses GLR(1)). Haven't tested test-cybnf.
 
+Having both a terminal and non-terminal with the same name doesn't work. The non-terminal takes precedent causing `unexpected token` errors.
+
 ### Todo list:
 
 * Add a new test that forces a full re-build every time

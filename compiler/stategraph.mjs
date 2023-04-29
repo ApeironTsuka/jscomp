@@ -107,8 +107,8 @@ export class StateGraph {
     // use the "virtual" axiom-real production as the seed for the initial state
     // this way axiom can be defined as `<axiom> ::= {<something>}*` without causing issues
     p = Production.copyOf(jbnf.find('axiom-real')[0]);
-    p.lookaheads.add(Tokens.copyOf([ new Token(TERM, '$') ]));
-    while (p.lookaheads.list[0].list.length < K) { p.lookaheads.list[0].list.push(new Token(TERM, '$')); }
+    p.lookaheads.add(Tokens.copyOf([ Token.endToken ]));
+    while (p.lookaheads.list[0].list.length < K) { p.lookaheads.list[0].list.push(Token.endToken); }
     // build the initial state...
     if (!state.build(jbnf, [ p ])) { Printer.log(Channels.NORMAL, 'Error in state 0'); return false; }
     // ... and then build+check more

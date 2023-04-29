@@ -49,7 +49,7 @@ export class CFGBNFTokenizer extends Tokenizer {
       }
       yield new BNFToken('[newline]', undefined, i, line.length);
     }
-    while (K > 1) { yield new Token(TERM, '$'); K--; }
-    return new Token(TERM, '$');
+    while (K > 1) { yield Token.endToken; K--; }
+    return Token.endToken;
   }
 }

@@ -168,7 +168,7 @@ export class ProductionList {
       // Special case for handling axiom-real, since its follow-of is always K number of $
       if (prod.left.label == 'axiom-real') {
         let la = new Tokens();
-        while (la.list.length < K) { la.list.push(new Token(TERM, '$')); }
+        while (la.list.length < K) { la.list.push(Token.endToken); }
         follow.get('axiom-real').add(la);
         continue;
       }

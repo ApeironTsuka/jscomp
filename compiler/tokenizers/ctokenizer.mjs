@@ -36,7 +36,7 @@ export class CTokenizer extends Tokenizer {
         char += s.length + 3;
       } else { throw new Error(`Unknown ... something at line ${line} char ${char}`); }
     }
-    while (K > 1) { yield new Token(TERM, '$'); K--; }
-    return new Token(TERM, '$');
+    while (K > 1) { yield Token.endToken; K--; }
+    return Token.endToken;
   }
 }

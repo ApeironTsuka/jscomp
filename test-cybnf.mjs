@@ -8,7 +8,7 @@ parseYBNF(fs.readFileSync('bnf/c.ybnf').toString())
 .then((b) => {
   let sdt = new SDT();
   sdt.create(b, ybnfpre);
-  let a = [ new Token(TERM, '1'), new Token(TERM, '+'), new Token(TERM, '1'), new Token(TERM, '$') ];
+  let a = [ new Token(TERM, '1'), new Token(TERM, '+'), new Token(TERM, '1'), Token.endToken ];
   return sdt.run(a);
 })
 .then((b) => {});

@@ -39,6 +39,8 @@ export class LRBase { // Should never be used directly
   }
   #findByRegex(label) {
     let works = [], { tokens } = this.graph;
+    // skip doing anything if label is a Symbol
+    if (typeof label === 'symbol') { return undefined; }
     // find all of the regex it matches
     for (let i = 0, { list } = this.bnf.regexes, l = list.length; i < l; i++) { if (list[i].regex.test(label)) { works.push(list[i]); } }
     // if only 1, then we're done
@@ -122,8 +124,8 @@ export class LRBase { // Should never be used directly
       switch (chart.get(tokenLabel).act) {
         case SHIFT:
           this.#shiftStack(stack, chart.get(tokenLabel), token);
-          tokenBuf.list.shift(); await addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
-          if (!token) { token = new Token(TERM, '$'); }
+          tokenBuf.list.shift(); await addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = Token.endToken; tokenLabel = Token.endToken.label; }
+          if (!token) { token = Token.endToken; }
           break;
         case REDUCE: this.#reduceStack(stack, chart.get(tokenLabel), tokenBuf); break;
         case ACCEPT:
@@ -186,9 +188,16 @@ export class LRBase { // Should never be used directly
             Printer.log(Channels.NORMAL, stack);
             Printer.log(Channels.NORMAL, chart);
             return false;
-          } else { lastStack = stack; stacks.splice(st, 1); st--; continue; }
+          } else {
+            //Printer.log(Channels.DEBUG, 'failed stack', st, 'purging');
+            lastStack = stack;
+            stacks.splice(st, 1);
+            if (st == stl - 1) { break; }
+            st--;
+            continue;
+          }
         }
-        //Printer.log(Channels.DEBUG, 'loop', tokenLabel, st, stacks.length, stackAsString(stack));
+        //Printer.log(Channels.DEBUG, 'loop', tokenLabel, st, stl, stacks.length, stackAsString(stack));
         let ch = chart.get(tokenLabel), accept = false, tmpStack, tmpCharts;
         if (!(ch instanceof Array)) { ch = [ ch ]; }
         for (let c = 0, cl = ch.length; c < cl; c++) {
@@ -229,7 +238,7 @@ export class LRBase { // Should never be used directly
                           reduceList.splice(i, 1); i--;
                         }
                       } else { reduceList.splice(i, 1); i--; }
-                    } else { lastStack = reduceList[i]; reduceList.splice(i, 1); i--; }
+                    } else { /*Printer.log(Channels.DEBUG, 'reduce2 failed', tokenLabel, st, stackAsString(reduceList[i]));*/ lastStack = reduceList[i]; reduceList.splice(i, 1); i--; }
                   }
                 }
                 for (let i = 0, l = shiftList.length; i < l; i++) {
@@ -237,7 +246,7 @@ export class LRBase { // Should never be used directly
                     //Printer.log(Channels.DEBUG, 'shift2', tokenLabel, st, i, shiftList.length, stackAsString(shiftList[i]));
                     this.#shiftStack(shiftList[i], tmpCharts, token);
                     stacks.push(shiftList[i]);
-                  } else { lastStack = shiftList[i]; }
+                  } else { /*Printer.log(Channels.DEBUG, 'shift2 failed', tokenLabel, st, stackAsString(shiftList[i]));*/ lastStack = shiftList[i]; }
                 }
               }
               break;
@@ -251,6 +260,7 @@ export class LRBase { // Should never be used directly
                 return false;
               }
               stacks.splice(st, 1);
+              if (st == stl - 1) { stl = -1; }
               st--;
               break;
             default: Printer.log(Channels.NORMAL, this.error = `DEFAULT-GLR ${token.label}`, '\n', ch, '\n', c); return false;
@@ -258,11 +268,21 @@ export class LRBase { // Should never be used directly
         }
         if (run == false) { break; }
       }
-      for (let i = 0, l = stacks.length; i < l; i++) { if (!stacks[i]) { stacks.splice(i, 1); i--; l--; } }
+      {
+        let sasMap = {}, sas;
+        for (let i = 0, l = stacks.length; i < l; i++) {
+          if (!stacks[i]) { /*Printer.log(Channels.DEBUG, 'clearing checked stack', i, l);*/ stacks.splice(i, 1); i--; l--; continue; }
+          sas = stackAsString(stacks[i]);
+          if (sasMap[sas]) { Printer.log(Channels.DEBUG, 'purging duplicate stack', i, l);  stacks.splice(i, 1); i--; l--; }
+          sasMap[sas] = true;
+        }
+      }
       if ((trim) && (trim > 0)) { if (stacks.length > trim) { stacks.length = trim; } }
       lastToken = token;
-      tokenBuf.list.shift(); await addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = new Token(TERM, '$'); tokenLabel = '$'; }
+      tokenBuf.list.shift(); await addNextToken(); token = tokenBuf.list[0]; if (token) { tokenLabel = token.isRegex ? token.orig.label : token.label; } else { token = Token.endToken; tokenLabel = Token.endToken.label; }
       //Printer.log(Channels.DEBUG, 'next', tokenLabel);
+      //Printer.log(Channels.DEBUG, 'stacks:');
+      //for (let st = 0, stl = stacks.length; st < stl; st++) { if (stacks[st]) { Printer.log(Channels.DEBUG, 'stack', st, stl, stackAsString(stacks[st])); } }
     }
     // recursively remove "virtual" productions, moving their children into their place
     //Printer.log(Channels.DEBUG, 'tree total', this.trees.length);

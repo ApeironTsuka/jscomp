@@ -23,8 +23,8 @@ export class YBNFTokenizer extends Tokenizer {
         }
       }
     }
-    while (K > 1) { yield new Token(TERM, '$'); K--; }
-    return new Token(TERM, '$');
+    while (K > 1) { yield Token.endToken; K--; }
+    return Token.endToken;
   }
 }
 
