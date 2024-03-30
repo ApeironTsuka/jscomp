@@ -1,7 +1,7 @@
 import { TERM } from '../consts.mjs';
 export class Token {
   constructor(type, label, value) { this.type = type; this._label = label; this.value = value; }
-  get label() { return this._label.description || this._label; }
+  get label() { return this._label ? this._label.description || this._label : undefined; }
   set label(l) { this._label = l; }
   toString() { return typeof this.label === 'symbol' ? this.label.description : this.label; }
   copy(token, extra) {
